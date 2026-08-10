@@ -132,6 +132,9 @@ public class UserServiceImpl implements UserService {
     }
 
     private UserResponse toResponse(User user) {
+        // Format dates in user object
+        user.formatAllDates();
+
         // Resolve role names from role IDs
         List<String> roleNames = new ArrayList<>();
         if (user.getRoleIds() != null && !user.getRoleIds().isEmpty()) {
@@ -141,21 +144,25 @@ public class UserServiceImpl implements UserService {
 
         String fullName = buildFullName(user.getFirstName(), user.getLastName());
 
-        return new UserResponse(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getFirstName(),
-                user.getLastName(),
-                fullName,
-                user.getRoleIds(),
-                roleNames,
-                user.getUserStatus(),
-                user.getUserType(),
-                user.getCreatedOn(),
-                user.getLastUpdatedOn(),
-                user.getLastLoginDate()
-        );
+        UserResponse response = new UserResponse();
+        response.setId(user.getId());
+        response.setUsername(user.getUsername());
+        response.setEmail(user.getEmail());
+        response.setFirstName(user.getFirstName());
+        response.setLastName(user.getLastName());
+        response.setFullName(fullName);
+        response.setRoleIds(user.getRoleIds());
+        response.setRoleNames(roleNames);
+        response.setUserStatus(user.getUserStatus());
+        response.setUserType(user.getUserType());
+        response.setCreatedOn(user.getCreatedOn());
+        response.setLastUpdatedOn(user.getLastUpdatedOn());
+        response.setLastLoginDate(user.getLastLoginDate());
+
+        // Format all date fields
+        response.formatAllDates();
+
+        return response;
     }
 
     private String buildFullName(String firstName, String lastName) {
