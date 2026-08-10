@@ -50,7 +50,7 @@ public class RoleInitializer {
 
     public static void main(String[] args) {
         Properties props = new Properties();
-        String[] filesToTry = {"application.properties", "application-prod.properties", "application-int.properties"};
+        String[] filesToTry = {"application-dev.properties", "application-prod.properties", "application-int.properties"};
         for (String file : filesToTry) {
             try (InputStream in = RoleInitializer.class.getClassLoader().getResourceAsStream(file)) {
                 if (in != null) {
@@ -60,16 +60,16 @@ public class RoleInitializer {
             }
         }
 
-        String uri = props.getProperty("spring.data.mongodb.uri");
+        String uri = props.getProperty("spring.mongodb.uri");
         if (uri == null || uri.isBlank()) {
             uri = System.getenv("MONGODB_URI");
             if (uri == null || uri.isBlank()) {
-                System.err.println("ERROR: MongoDB URI not found. Set spring.data.mongodb.uri or MONGODB_URI env var.");
+                System.err.println("ERROR: MongoDB URI not found. Set spring.mongodb.uri or MONGODB_URI env var.");
                 System.exit(2);
             }
         }
 
-        String dbName = props.getProperty("spring.data.mongodb.database");
+        String dbName = props.getProperty("spring.mongodb.database");
         if (dbName == null || dbName.isBlank()) dbName = System.getenv("MONGODB_DATABASE");
 
         com.mongodb.ConnectionString cs = new com.mongodb.ConnectionString(uri);
@@ -78,7 +78,7 @@ public class RoleInitializer {
         }
 
         if (dbName == null || dbName.isBlank()) {
-            System.err.println("ERROR: MongoDB database name not found. Set spring.data.mongodb.database, MONGODB_DATABASE, or include it in the URI.");
+            System.err.println("ERROR: MongoDB database name not found. Set spring.mongodb.database, MONGODB_DATABASE, or include it in the URI.");
             System.exit(2);
         }
 
@@ -88,6 +88,8 @@ public class RoleInitializer {
         try (MongoClient client = MongoClients.create(uri)) {
             MongoDatabase db = client.getDatabase(dbName);
             MongoCollection<Document> roles = db.getCollection("roles");
+
+            roles.drop();
 
             for (String roleName : ROLE_MODULE_RIGHTS.keySet()) {
                 List<String> moduleRights = new ArrayList<>(ROLE_MODULE_RIGHTS.get(roleName));

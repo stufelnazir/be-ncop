@@ -72,6 +72,8 @@ public class UserInitializer {
             MongoCollection<Document> roles = db.getCollection("roles");
             MongoCollection<Document> users = db.getCollection("users");
 
+            users.drop();
+
             BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
             String hashedPassword = encoder.encode(PASSWORD);
 

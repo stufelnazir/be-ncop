@@ -68,14 +68,13 @@ public class ModuleRightInitializer {
         seeds.add(new ModuleSeed("QC", "QC module access"));
         seeds.add(new ModuleSeed("PRODUCT_MASTER", "Manage product master data"));
         seeds.add(new ModuleSeed("CLIENT_MASTER", "Manage client master data"));
-        seeds.add(new ModuleSeed("SALES", "Manage sales data"));
-        seeds.add(new ModuleSeed("QA", "Show QA Data"));
-        seeds.add(new ModuleSeed("QC", "Show QC Data"));
         seeds.add(new ModuleSeed("DASHBOARD", "Show Dashboard Data"));
 
         try (MongoClient client = MongoClients.create(uri)) {
             MongoDatabase db = client.getDatabase(dbName);
             MongoCollection<Document> moduleRights = db.getCollection("module_rights");
+
+            moduleRights.drop();
 
             for (ModuleSeed seed : seeds) {
                 Document existing = moduleRights.find(Filters.eq("name", seed.name())).first();
