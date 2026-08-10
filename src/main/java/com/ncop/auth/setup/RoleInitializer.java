@@ -47,14 +47,14 @@ public class RoleInitializer {
         // Read Mongo configuration from application.properties on the classpath if available,
         // otherwise fall back to environment variables and finally sensible defaults.
         Properties props = new Properties();
-        String uri = System.getenv().getOrDefault("MONGODB_URI", "mongodb+srv://stufelnazir_db_user:9JADXQIgxTqoppFm@ncop-dev.71bsnb7.mongodb.net/?appName=ncop-dev");
-        String dbName = System.getenv().getOrDefault("MONGODB_DATABASE", "dev");
+        String uri = System.getenv().getOrDefault("MONGODB_URI", "mongodb://localhost:27017");
+        String dbName = System.getenv().getOrDefault("MONGODB_DATABASE", "be-ncop");
 
-        try (InputStream in = RoleInitializer.class.getClassLoader().getResourceAsStream("application.properties")) {
+        try (InputStream in = RoleInitializer.class.getClassLoader().getResourceAsStream("application-dev.properties")) {
             if (in != null) {
                 props.load(in);
-                String propUri = props.getProperty("spring.data.mongodb.uri");
-                String propDb = props.getProperty("spring.data.mongodb.database");
+                String propUri = props.getProperty("spring.mongodb.uri");
+                String propDb = props.getProperty("spring.mongodb.database");
                 if (propUri != null && !propUri.isBlank()) uri = propUri;
                 if (propDb != null && !propDb.isBlank()) dbName = propDb;
             }
