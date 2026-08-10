@@ -1,4 +1,4 @@
-package com.ncop.auth;
+package com.ncop.auth.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

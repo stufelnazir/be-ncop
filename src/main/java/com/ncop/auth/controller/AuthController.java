@@ -1,7 +1,11 @@
-package com.ncop.auth;
+package com.ncop.auth.controller;
 
 import com.ncop.auth.dto.AuthResponse;
 import com.ncop.auth.dto.LoginRequest;
+import com.ncop.auth.model.Role;
+import com.ncop.auth.model.User;
+import com.ncop.auth.repository.RoleRepository;
+import com.ncop.auth.repository.UserRepository;
 import com.ncop.auth.service.UserService;
 import com.ncop.security.JwtUtil;
 import org.springframework.http.ResponseEntity;

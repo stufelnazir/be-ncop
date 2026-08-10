@@ -1,4 +1,4 @@
-package com.ncop.auth;
+package com.ncop.auth.model;
 
 import com.ncop.auth.enums.UserStatus;
 import com.ncop.auth.enums.UserType;

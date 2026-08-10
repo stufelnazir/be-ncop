@@ -1,7 +1,7 @@
 package com.ncop.auth.service;
 
-import com.ncop.auth.Role;
-import com.ncop.auth.RoleRepository;
+import com.ncop.auth.model.Role;
+import com.ncop.auth.repository.RoleRepository;
 import com.ncop.auth.dto.CreateRoleRequest;
 import com.ncop.auth.dto.RoleResponse;
 import com.ncop.auth.dto.UpdateRoleRequest;
