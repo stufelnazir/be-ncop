@@ -34,7 +34,7 @@ public class UserInitializer {
     public static void main(String[] args) {
         // Load properties from classpath
         Properties props = new Properties();
-        String[] filesToTry = {"application.properties", "application-prod.properties", "application-int.properties"};
+        String[] filesToTry = {"application-dev.properties"};
         for (String f : filesToTry) {
             try (InputStream in = UserInitializer.class.getClassLoader().getResourceAsStream(f)) {
                 if (in != null) props.load(in);
@@ -42,16 +42,16 @@ public class UserInitializer {
             }
         }
 
-        String uri = props.getProperty("spring.data.mongodb.uri");
+        String uri = props.getProperty("spring.mongodb.uri");
         if (uri == null || uri.isBlank()) {
             uri = System.getenv("MONGODB_URI");
             if (uri == null || uri.isBlank()) {
-                System.err.println("ERROR: MongoDB URI not found. Set spring.data.mongodb.uri or MONGODB_URI env var.");
+                System.err.println("ERROR: MongoDB URI not found. Set spring.mongodb.uri or MONGODB_URI env var.");
                 System.exit(2);
             }
         }
 
-        String dbName = props.getProperty("spring.data.mongodb.database");
+        String dbName = props.getProperty("spring.mongodb.database");
         if (dbName == null || dbName.isBlank()) dbName = System.getenv("MONGODB_DATABASE");
 
         com.mongodb.ConnectionString cs = new com.mongodb.ConnectionString(uri);
@@ -60,7 +60,7 @@ public class UserInitializer {
         }
 
         if (dbName == null || dbName.isBlank()) {
-            System.err.println("ERROR: MongoDB database name not found. Set spring.data.mongodb.database, MONGODB_DATABASE, or include it in the URI.");
+            System.err.println("ERROR: MongoDB database name not found. Set spring.mongodb.database, MONGODB_DATABASE, or include it in the URI.");
             System.exit(2);
         }
 
