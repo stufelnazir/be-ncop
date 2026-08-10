@@ -12,7 +12,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -43,7 +46,12 @@ public class AuthController {
         var userOpt = userRepository.findByEmail(request.email());
 
         if (userOpt.isEmpty() || !passwordEncoder.matches(request.password(), userOpt.get().getPassword())) {
-            return ResponseEntity.status(401).body("Invalid email or password");
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("timestamp", Instant.now());
+            body.put("status", 401);
+            body.put("error", "Unauthorized");
+            body.put("message", "Invalid email or password");
+            return ResponseEntity.status(401).body(body);
         }
 
         User user = userOpt.get();
