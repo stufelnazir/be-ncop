@@ -1,23 +1,20 @@
 package com.ncop.auth;
 
-import jakarta.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+import lombok.Getter;
+import lombok.Setter;
 
-@Entity
-@Table(name = "roles")
+@Getter
+@Setter
+@Document(collection = "roles")
 public class Role {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @Enumerated(EnumType.STRING)
-    @Column(unique = true, nullable = false)
     private RoleName name;
 
     public Role() {}
     public Role(RoleName name) { this.name = name; }
-
-    public Long getId() { return id; }
-    public RoleName getName() { return name; }
-    public void setName(RoleName name) { this.name = name; }
 }

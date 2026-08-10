@@ -17,10 +17,10 @@ public class JwtUtil {
 
     public String generateToken(String email, List<String> roles) {
         return Jwts.builder()
-                .subject(email)
+                .setSubject(email)
                 .claim("roles", roles)
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 15))
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 15))
                 .signWith(key)
                 .compact();
     }
@@ -31,14 +31,17 @@ public class JwtUtil {
 
     @SuppressWarnings("unchecked")
     public List<String> extractRoles(String token) {
-        return (List<String>) parseClaims(token).get("roles");
+        Object roles = parseClaims(token).get("roles");
+        if (roles instanceof List) return (List<String>) roles;
+        return List.of();
     }
 
     private Claims parseClaims(String token) {
-        return Jwts.parser()
-                .verifyWith(key)
+        // use parserBuilder API for jjwt 0.11.x
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
                 .build()
-                .parseSignedClaims(token)
-                .getPayload();
+                .parseClaimsJws(token)
+                .getBody();
     }
 }
