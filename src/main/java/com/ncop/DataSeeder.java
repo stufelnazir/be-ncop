@@ -1,11 +1,13 @@
-//package com.ncop;
-//
+package com.ncop;
+
 //import com.ncop.auth.*;
+//import com.ncop.auth.enums.UserStatus;
+//import com.ncop.auth.enums.UserType;
 //import org.springframework.boot.CommandLineRunner;
 //import org.springframework.security.crypto.password.PasswordEncoder;
 //import org.springframework.stereotype.Component;
 //
-//import java.util.Set;
+//import java.util.List;
 //
 //@Component
 //public class DataSeeder implements CommandLineRunner {
@@ -22,27 +24,42 @@
 //
 //    @Override
 //    public void run(String... args) {
-//        for (RoleName rn : RoleName.values()) {
-//            roleRepository.findByName(rn).orElseGet(() -> roleRepository.save(new Role(rn)));
-//        }
+//        // Seed default roles
+//        seedRole("ROLE_ADMIN", List.of("CLIENT_READ", "CLIENT_WRITE", "RFQ_READ", "RFQ_WRITE", "USER_MANAGE"));
+//        seedRole("ROLE_SALES", List.of("CLIENT_READ", "CLIENT_WRITE", "RFQ_READ", "RFQ_WRITE"));
+//        seedRole("ROLE_QA", List.of("CLIENT_READ", "RFQ_READ"));
+//        seedRole("ROLE_REGULATORY", List.of("CLIENT_READ", "RFQ_READ"));
 //
-//        seedUser("admin@ncop.com", "Admin User", "Admin@123", RoleName.ADMIN);
-//        seedUser("sales@ncop.com", "Sales User", "Sales@123", RoleName.SALES);
-//        seedUser("qa@ncop.com", "QA User", "Qa@12345", RoleName.QA);
-//        seedUser("regulatory@ncop.com", "Regulatory User", "Reg@1234", RoleName.REGULATORY);
+//        // Seed default users
+//        Role adminRole = roleRepository.findByName("ROLE_ADMIN").orElseThrow();
+//        seedUser("admin@ncop.com", "Admin", "User", "Admin@123", adminRole, UserType.ADMIN);
+//
+//        Role salesRole = roleRepository.findByName("ROLE_SALES").orElseThrow();
+//        seedUser("sales@ncop.com", "Sales", "User", "Sales@123", salesRole, UserType.EMPLOYEE);
+//
 //        System.out.println("DEBUG: Total users in DB = " + userRepository.count());
 //    }
 //
-//    private void seedUser(String email, String fullName, String rawPassword, RoleName roleName) {
-//        if (userRepository.findByEmail(email).isPresent()) return;
+//    private void seedRole(String name, List<String> moduleRights) {
+//        if (roleRepository.findByName(name).isEmpty()) {
+//            Role role = new Role(name, moduleRights);
+//            roleRepository.save(role);
+//        }
+//    }
 //
-//        Role role = roleRepository.findByName(roleName).orElseThrow();
+//    private void seedUser(String email, String firstName, String lastName,
+//                          String rawPassword, Role role, UserType userType) {
+//        if (userRepository.findByEmail(email).isPresent()) return;
 //
 //        User user = new User();
 //        user.setEmail(email);
-//        user.setFullName(fullName);
-//        user.setPasswordHash(passwordEncoder.encode(rawPassword));
-//        user.setRoles(Set.of(role));
+//        user.setUsername(email);  // username = email
+//        user.setPassword(passwordEncoder.encode(rawPassword));
+//        user.setFirstName(firstName);
+//        user.setLastName(lastName);
+//        user.setRoleIds(List.of(role.getRoleId()));
+//        user.setUserStatus(UserStatus.ACTIVE);
+//        user.setUserType(userType);
 //
 //        userRepository.save(user);
 //    }

@@ -1,0 +1,170 @@
+package com.ncop.auth.service;
+
+import com.ncop.auth.Role;
+import com.ncop.auth.RoleRepository;
+import com.ncop.auth.User;
+import com.ncop.auth.UserRepository;
+import com.ncop.auth.dto.CreateUserRequest;
+import com.ncop.auth.dto.UpdateUserRequest;
+import com.ncop.auth.dto.UserResponse;
+import com.ncop.auth.enums.UserStatus;
+import com.ncop.auth.enums.UserType;
+import com.ncop.auth.exception.DuplicateResourceException;
+import com.ncop.auth.exception.ResourceNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+public class UserServiceImpl implements UserService {
+
+    private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    public UserServiceImpl(UserRepository userRepository,
+                           RoleRepository roleRepository,
+                           PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    @Override
+    public UserResponse createUser(CreateUserRequest request) {
+        if (userRepository.existsByEmail(request.email())) {
+            throw new DuplicateResourceException("User with email '" + request.email() + "' already exists");
+        }
+
+        // Validate that all provided role IDs exist
+        validateRoleIds(request.roleIds());
+
+        User user = new User();
+        user.setEmail(request.email());
+        user.setUsername(request.email());  // Business Rule: username = email
+        user.setPassword(passwordEncoder.encode(request.password()));  // BCrypt hash
+        user.setFirstName(request.firstName());
+        user.setLastName(request.lastName());
+        user.setRoleIds(request.roleIds() != null ? request.roleIds() : new ArrayList<>());
+        user.setUserStatus(request.userStatus() != null ? request.userStatus() : UserStatus.PENDING);
+        user.setUserType(request.userType() != null ? request.userType() : UserType.EMPLOYEE);
+
+        User saved = userRepository.save(user);
+        return toResponse(saved);
+    }
+
+    @Override
+    public UserResponse updateUser(String userId, UpdateUserRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (request.email() != null && !request.email().equals(user.getEmail())) {
+            if (userRepository.existsByEmail(request.email())) {
+                throw new DuplicateResourceException("User with email '" + request.email() + "' already exists");
+            }
+            user.setEmail(request.email());
+            user.setUsername(request.email());  // Business Rule: sync username = email
+        }
+
+        if (request.firstName() != null) {
+            user.setFirstName(request.firstName());
+        }
+        if (request.lastName() != null) {
+            user.setLastName(request.lastName());
+        }
+        if (request.roleIds() != null) {
+            validateRoleIds(request.roleIds());
+            user.setRoleIds(request.roleIds());
+        }
+        if (request.userStatus() != null) {
+            user.setUserStatus(request.userStatus());
+        }
+        if (request.userType() != null) {
+            user.setUserType(request.userType());
+        }
+
+        User saved = userRepository.save(user);
+        return toResponse(saved);
+    }
+
+    @Override
+    public UserResponse getUserById(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+        return toResponse(user);
+    }
+
+    @Override
+    public List<UserResponse> getAllUsers() {
+        return userRepository.findAll().stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Override
+    public void deleteUser(String userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("User not found with id: " + userId);
+        }
+        userRepository.deleteById(userId);
+    }
+
+    @Override
+    public void updateLastLoginDate(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+        user.setLastLoginDate(Instant.now());
+        userRepository.save(user);
+    }
+
+    // ── Private helpers ──────────────────────────────────────────────
+
+    private void validateRoleIds(List<String> roleIds) {
+        if (roleIds == null || roleIds.isEmpty()) return;
+        for (String roleId : roleIds) {
+            if (!roleRepository.existsById(roleId)) {
+                throw new ResourceNotFoundException("Role not found with id: " + roleId);
+            }
+        }
+    }
+
+    private UserResponse toResponse(User user) {
+        // Resolve role names from role IDs
+        List<String> roleNames = new ArrayList<>();
+        if (user.getRoleIds() != null && !user.getRoleIds().isEmpty()) {
+            List<Role> roles = roleRepository.findAllById(user.getRoleIds());
+            roleNames = roles.stream().map(Role::getName).toList();
+        }
+
+        String fullName = buildFullName(user.getFirstName(), user.getLastName());
+
+        return new UserResponse(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getFirstName(),
+                user.getLastName(),
+                fullName,
+                user.getRoleIds(),
+                roleNames,
+                user.getUserStatus(),
+                user.getUserType(),
+                user.getCreatedOn(),
+                user.getLastUpdatedOn(),
+                user.getLastLoginDate()
+        );
+    }
+
+    private String buildFullName(String firstName, String lastName) {
+        StringBuilder sb = new StringBuilder();
+        if (firstName != null && !firstName.isBlank()) sb.append(firstName);
+        if (lastName != null && !lastName.isBlank()) {
+            if (!sb.isEmpty()) sb.append(" ");
+            sb.append(lastName);
+        }
+        return sb.toString();
+    }
+}
