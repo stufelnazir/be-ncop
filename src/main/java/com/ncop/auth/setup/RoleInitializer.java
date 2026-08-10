@@ -5,80 +5,102 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Updates;
 import com.ncop.auth.model.Role;
 import com.ncop.auth.repository.RoleRepository;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
-import java.io.InputStream;
 import java.io.IOException;
-import java.util.Properties;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 
 /**
- * Helper class to seed roles collection. This is intentionally NOT a Spring component so it won't run
- * automatically with the main BeNcopApplication. It now provides a public main(...) so executing this class
- * (clicking Run in the IDE) will seed the roles immediately.
+ * Standalone role initializer. It seeds the roles collection and assigns module-right names
+ * according to the requested role mapping. It does not auto-run with the main application.
  */
 public class RoleInitializer {
+
+    private static final Map<String, List<String>> ROLE_MODULE_RIGHTS = Map.of(
+            "ADMIN", Arrays.asList("DASHBOARD", "USER_MANAGEMENT", "ROLE_MANAGEMENT", "MODULE_RIGHT_MANAGEMENT", "AUTHENTICATION", "SALES", "QA", "QC"),
+            "SALES", Arrays.asList("DASHBOARD", "SALES"),
+            "QA", Arrays.asList("DASHBOARD", "QA"),
+            "QC", Arrays.asList("DASHBOARD", "QC")
+    );
 
     public static void seedRoles(RoleRepository roleRepository) {
         List<String> requiredRoles = List.of("ADMIN", "SALES", "QA", "QC");
 
         for (String roleName : requiredRoles) {
-            if (!roleRepository.existsByName(roleName)) {
-                Role role = new Role(roleName, new ArrayList<>());
+            List<String> moduleRights = new ArrayList<>(ROLE_MODULE_RIGHTS.getOrDefault(roleName, List.of()));
+            Role existing = roleRepository.findByName(roleName).orElse(null);
+            if (existing == null) {
+                Role role = new Role(roleName, moduleRights);
                 roleRepository.save(role);
+            } else {
+                existing.setModuleRights(moduleRights);
+                roleRepository.save(existing);
             }
         }
     }
 
-    /**
-     * Standalone entrypoint. Running this class directly will seed the roles using the MongoDB driver.
-     * It will NOT participate in the main Spring Boot lifecycle.
-     *
-     * Env vars:
-     *  - MONGODB_URI (default: mongodb://localhost:27017)
-     *  - MONGODB_DATABASE (default: be-ncop)
-     */
     public static void main(String[] args) {
-        // Read Mongo configuration from application.properties on the classpath if available,
-        // otherwise fall back to environment variables and finally sensible defaults.
         Properties props = new Properties();
-        String uri = System.getenv().getOrDefault("MONGODB_URI", "mongodb://localhost:27017");
-        String dbName = System.getenv().getOrDefault("MONGODB_DATABASE", "be-ncop");
-
-        try (InputStream in = RoleInitializer.class.getClassLoader().getResourceAsStream("application-dev.properties")) {
-            if (in != null) {
-                props.load(in);
-                String propUri = props.getProperty("spring.mongodb.uri");
-                String propDb = props.getProperty("spring.mongodb.database");
-                if (propUri != null && !propUri.isBlank()) uri = propUri;
-                if (propDb != null && !propDb.isBlank()) dbName = propDb;
+        String[] filesToTry = {"application.properties", "application-prod.properties", "application-int.properties"};
+        for (String file : filesToTry) {
+            try (InputStream in = RoleInitializer.class.getClassLoader().getResourceAsStream(file)) {
+                if (in != null) {
+                    props.load(in);
+                }
+            } catch (IOException ignored) {
             }
-        } catch (IOException e) {
-            System.err.println("Failed to read application.properties from classpath: " + e.getMessage());
         }
+
+        String uri = props.getProperty("spring.data.mongodb.uri");
+        if (uri == null || uri.isBlank()) {
+            uri = System.getenv("MONGODB_URI");
+            if (uri == null || uri.isBlank()) {
+                System.err.println("ERROR: MongoDB URI not found. Set spring.data.mongodb.uri or MONGODB_URI env var.");
+                System.exit(2);
+            }
+        }
+
+        String dbName = props.getProperty("spring.data.mongodb.database");
+        if (dbName == null || dbName.isBlank()) dbName = System.getenv("MONGODB_DATABASE");
+
+        com.mongodb.ConnectionString cs = new com.mongodb.ConnectionString(uri);
+        if ((dbName == null || dbName.isBlank()) && cs.getDatabase() != null) {
+            dbName = cs.getDatabase();
+        }
+
+        if (dbName == null || dbName.isBlank()) {
+            System.err.println("ERROR: MongoDB database name not found. Set spring.data.mongodb.database, MONGODB_DATABASE, or include it in the URI.");
+            System.exit(2);
+        }
+
+        System.out.println("Using MongoDB URI: " + (uri.length() > 40 ? uri.substring(0, 40) + "..." : uri));
+        System.out.println("Using MongoDB database: " + dbName);
 
         try (MongoClient client = MongoClients.create(uri)) {
             MongoDatabase db = client.getDatabase(dbName);
             MongoCollection<Document> roles = db.getCollection("roles");
 
-            List<String> requiredRoles = Arrays.asList("ADMIN", "SALES", "QA", "QC");
-
-            for (String roleName : requiredRoles) {
+            for (String roleName : ROLE_MODULE_RIGHTS.keySet()) {
+                List<String> moduleRights = new ArrayList<>(ROLE_MODULE_RIGHTS.get(roleName));
                 Document found = roles.find(Filters.eq("name", roleName)).first();
                 if (found == null) {
-                    Document doc = new Document("name", roleName)
-                            .append("moduleRights", Arrays.asList());
+                    Document doc = new Document("name", roleName).append("moduleRights", moduleRights);
                     roles.insertOne(doc);
                     ObjectId id = doc.getObjectId("_id");
-                    System.out.println("Inserted role '" + roleName + "' with id " + id.toHexString());
+                    System.out.println("Inserted role '" + roleName + "' with id " + id.toHexString() + " and moduleRights=" + moduleRights);
                 } else {
+                    roles.updateOne(Filters.eq("_id", found.get("_id")), Updates.set("moduleRights", moduleRights));
                     ObjectId id = found.getObjectId("_id");
-                    System.out.println("Role '" + roleName + "' already exists with id " + id.toHexString());
+                    System.out.println("Updated role '" + roleName + "' with id " + id.toHexString() + " and moduleRights=" + moduleRights);
                 }
             }
 

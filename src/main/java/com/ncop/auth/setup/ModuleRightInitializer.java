@@ -58,10 +58,14 @@ public class ModuleRightInitializer {
         System.out.println("Using MongoDB database: " + dbName);
 
         List<ModuleSeed> seeds = new ArrayList<>();
+        seeds.add(new ModuleSeed("DASHBOARD", "Dashboard access"));
         seeds.add(new ModuleSeed("USER_MANAGEMENT", "Manage users"));
         seeds.add(new ModuleSeed("ROLE_MANAGEMENT", "Manage roles"));
         seeds.add(new ModuleSeed("MODULE_RIGHT_MANAGEMENT", "Manage module rights"));
         seeds.add(new ModuleSeed("AUTHENTICATION", "Authentication and session operations"));
+        seeds.add(new ModuleSeed("SALES", "Sales module access"));
+        seeds.add(new ModuleSeed("QA", "QA module access"));
+        seeds.add(new ModuleSeed("QC", "QC module access"));
         seeds.add(new ModuleSeed("PRODUCT_MASTER", "Manage product master data"));
         seeds.add(new ModuleSeed("CLIENT_MASTER", "Manage client master data"));
         seeds.add(new ModuleSeed("SALES", "Manage sales data"));
