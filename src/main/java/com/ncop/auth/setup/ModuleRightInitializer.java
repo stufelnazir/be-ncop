@@ -22,7 +22,7 @@ public class ModuleRightInitializer {
 
     public static void main(String[] args) {
         Properties props = new Properties();
-        String[] filesToTry = {"application.properties", "application-prod.properties", "application-int.properties"};
+        String[] filesToTry = {"application-dev.properties"};
         for (String file : filesToTry) {
             try (InputStream in = ModuleRightInitializer.class.getClassLoader().getResourceAsStream(file)) {
                 if (in != null) {
@@ -32,16 +32,16 @@ public class ModuleRightInitializer {
             }
         }
 
-        String uri = props.getProperty("spring.data.mongodb.uri");
+        String uri = props.getProperty("spring.mongodb.uri");
         if (uri == null || uri.isBlank()) {
             uri = System.getenv("MONGODB_URI");
             if (uri == null || uri.isBlank()) {
-                System.err.println("ERROR: MongoDB URI not found. Set spring.data.mongodb.uri or MONGODB_URI env var.");
+                System.err.println("ERROR: MongoDB URI not found. Set spring.mongodb.uri or MONGODB_URI env var.");
                 System.exit(2);
             }
         }
 
-        String dbName = props.getProperty("spring.data.mongodb.database");
+        String dbName = props.getProperty("spring.mongodb.database");
         if (dbName == null || dbName.isBlank()) dbName = System.getenv("MONGODB_DATABASE");
 
         com.mongodb.ConnectionString cs = new com.mongodb.ConnectionString(uri);
@@ -50,7 +50,7 @@ public class ModuleRightInitializer {
         }
 
         if (dbName == null || dbName.isBlank()) {
-            System.err.println("ERROR: MongoDB database name not found. Set spring.data.mongodb.database, MONGODB_DATABASE, or include it in the URI.");
+            System.err.println("ERROR: MongoDB database name not found. Set spring.mongodb.database, MONGODB_DATABASE, or include it in the URI.");
             System.exit(2);
         }
 
@@ -62,6 +62,12 @@ public class ModuleRightInitializer {
         seeds.add(new ModuleSeed("ROLE_MANAGEMENT", "Manage roles"));
         seeds.add(new ModuleSeed("MODULE_RIGHT_MANAGEMENT", "Manage module rights"));
         seeds.add(new ModuleSeed("AUTHENTICATION", "Authentication and session operations"));
+        seeds.add(new ModuleSeed("PRODUCT_MASTER", "Manage product master data"));
+        seeds.add(new ModuleSeed("CLIENT_MASTER", "Manage client master data"));
+        seeds.add(new ModuleSeed("SALES", "Manage sales data"));
+        seeds.add(new ModuleSeed("QA", "Show QA Data"));
+        seeds.add(new ModuleSeed("QC", "Show QC Data"));
+        seeds.add(new ModuleSeed("DASHBOARD", "Show Dashboard Data"));
 
         try (MongoClient client = MongoClients.create(uri)) {
             MongoDatabase db = client.getDatabase(dbName);
