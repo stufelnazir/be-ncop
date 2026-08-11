@@ -62,12 +62,15 @@ public class ModuleRightService {
         ModuleRight existing = getModuleRightById(id);
 
         if (moduleRight.getName() != null && !moduleRight.getName().isBlank()) {
-            // Check if name is being changed and already exists
             if (!moduleRight.getName().equals(existing.getName()) &&
                     moduleRightRepository.findByName(moduleRight.getName()).isPresent()) {
                 throw new DuplicateResourceException("Module right with name '" + moduleRight.getName() + "' already exists");
             }
             existing.setName(moduleRight.getName());
+        }
+
+        if (moduleRight.getLabel() != null) {
+            existing.setLabel(moduleRight.getLabel());
         }
 
         if (moduleRight.getDescription() != null) {

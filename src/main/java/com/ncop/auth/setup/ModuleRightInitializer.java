@@ -5,6 +5,7 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Updates;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
@@ -58,17 +59,16 @@ public class ModuleRightInitializer {
         System.out.println("Using MongoDB database: " + dbName);
 
         List<ModuleSeed> seeds = new ArrayList<>();
-        seeds.add(new ModuleSeed("DASHBOARD", "Dashboard access"));
-        seeds.add(new ModuleSeed("USER_MANAGEMENT", "Manage users"));
-        seeds.add(new ModuleSeed("ROLE_MANAGEMENT", "Manage roles"));
-        seeds.add(new ModuleSeed("MODULE_RIGHT_MANAGEMENT", "Manage module rights"));
-        seeds.add(new ModuleSeed("AUTHENTICATION", "Authentication and session operations"));
-        seeds.add(new ModuleSeed("SALES", "Sales module access"));
-        seeds.add(new ModuleSeed("QA", "QA module access"));
-        seeds.add(new ModuleSeed("QC", "QC module access"));
-        seeds.add(new ModuleSeed("PRODUCT_MASTER", "Manage product master data"));
-        seeds.add(new ModuleSeed("CLIENT_MASTER", "Manage client master data"));
-        seeds.add(new ModuleSeed("DASHBOARD", "Show Dashboard Data"));
+        seeds.add(new ModuleSeed("DASHBOARD", "Dashboard", "Dashboard access"));
+        seeds.add(new ModuleSeed("USER_MANAGEMENT", "User Management", "Manage users"));
+        seeds.add(new ModuleSeed("ROLE_MANAGEMENT", "Role Management", "Manage roles"));
+        seeds.add(new ModuleSeed("MODULE_RIGHT_MANAGEMENT", "Module Right Management", "Manage module rights"));
+        seeds.add(new ModuleSeed("AUTHENTICATION", "Authentication", "Authentication and session operations"));
+        seeds.add(new ModuleSeed("SALES", "Sales", "Sales module access"));
+        seeds.add(new ModuleSeed("QA", "Quality Assurance", "QA module access"));
+        seeds.add(new ModuleSeed("QC", "Quality Control", "QC module access"));
+        seeds.add(new ModuleSeed("PRODUCT_MASTER", "Product Master", "Manage product master data"));
+        seeds.add(new ModuleSeed("CLIENT_MASTER", "Client Master", "Manage client master data"));
 
         try (MongoClient client = MongoClients.create(uri)) {
             MongoDatabase db = client.getDatabase(dbName);
@@ -80,11 +80,16 @@ public class ModuleRightInitializer {
                 Document existing = moduleRights.find(Filters.eq("name", seed.name())).first();
                 if (existing != null) {
                     ObjectId id = existing.getObjectId("_id");
-                    System.out.println("Module right '" + seed.name() + "' already exists with id " + id.toHexString());
+                    moduleRights.updateOne(Filters.eq("_id", id), Updates.combine(
+                            Updates.set("label", seed.label()),
+                            Updates.set("description", seed.description())
+                    ));
+                    System.out.println("Updated module right '" + seed.name() + "' with id " + id.toHexString());
                     continue;
                 }
 
                 Document doc = new Document("name", seed.name())
+                        .append("label", seed.label())
                         .append("description", seed.description());
                 moduleRights.insertOne(doc);
                 ObjectId insertedId = doc.getObjectId("_id");
@@ -99,5 +104,5 @@ public class ModuleRightInitializer {
         }
     }
 
-    private record ModuleSeed(String name, String description) {}
+    private record ModuleSeed(String name, String label, String description) {}
 }

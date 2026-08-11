@@ -3,8 +3,11 @@ package com.ncop.auth.controller;
 import com.ncop.auth.dto.AuthResponse;
 import com.ncop.auth.dto.ErrorResponse;
 import com.ncop.auth.dto.LoginRequest;
+import com.ncop.auth.dto.ModuleRightResponse;
+import com.ncop.auth.model.ModuleRight;
 import com.ncop.auth.model.Role;
 import com.ncop.auth.model.User;
+import com.ncop.auth.repository.ModuleRightRepository;
 import com.ncop.auth.repository.RoleRepository;
 import com.ncop.auth.repository.UserRepository;
 import com.ncop.auth.service.UserService;
@@ -12,7 +15,11 @@ import com.ncop.auth.util.DateTimeFormatterUtil;
 import com.ncop.security.JwtUtil;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -25,17 +32,20 @@ public class AuthController {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final ModuleRightRepository moduleRightRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final UserService userService;
 
     public AuthController(UserRepository userRepository,
                           RoleRepository roleRepository,
+                          ModuleRightRepository moduleRightRepository,
                           PasswordEncoder passwordEncoder,
                           JwtUtil jwtUtil,
                           UserService userService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
+        this.moduleRightRepository = moduleRightRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.userService = userService;
@@ -62,7 +72,7 @@ public class AuthController {
                 .map(Role::getName)
                 .collect(Collectors.toList());
 
-        List<String> moduleRights = user.getModuleRights() != null ? new ArrayList<>(user.getModuleRights()) : new ArrayList<>();
+        List<ModuleRightResponse> moduleRights = buildModuleRightResponses(user);
 
         // Generate tokens
         String accessToken = jwtUtil.generateAccessToken(user.getEmail(), roleNames);
@@ -122,7 +132,7 @@ public class AuthController {
                     .map(Role::getName)
                     .collect(Collectors.toList());
 
-            List<String> moduleRights = user.getModuleRights() != null ? new ArrayList<>(user.getModuleRights()) : new ArrayList<>();
+            List<ModuleRightResponse> moduleRights = buildModuleRightResponses(user);
 
             // Generate new access token
             String newAccessToken = jwtUtil.generateAccessToken(user.getEmail(), roleNames);
@@ -145,5 +155,18 @@ public class AuthController {
             ErrorResponse error = new ErrorResponse(401, "Unauthorized", "Invalid or expired refresh token");
             return ResponseEntity.status(401).body(error);
         }
+    }
+
+    private List<ModuleRightResponse> buildModuleRightResponses(User user) {
+        List<ModuleRight> allModuleRights = moduleRightRepository.findAll();
+        List<String> assignedModuleRights = user.getModuleRights() != null ? user.getModuleRights() : new ArrayList<>();
+
+        return allModuleRights.stream()
+                .map(moduleRight -> new ModuleRightResponse(
+                        moduleRight.getName(),
+                        moduleRight.getLabel() != null ? moduleRight.getLabel() : moduleRight.getName(),
+                        assignedModuleRights.contains(moduleRight.getName())
+                ))
+                .toList();
     }
 }
