@@ -5,7 +5,6 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Updates;
 import com.ncop.auth.model.Role;
 import com.ncop.auth.repository.RoleRepository;
 import org.bson.Document;
@@ -13,37 +12,22 @@ import org.bson.types.ObjectId;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 
 /**
- * Standalone role initializer. It seeds the roles collection and assigns module-right names
- * according to the requested role mapping. It does not auto-run with the main application.
+ * Standalone role initializer. It seeds the roles collection with the standard role names.
+ * It does not auto-run with the main application.
  */
 public class RoleInitializer {
 
-    private static final Map<String, List<String>> ROLE_MODULE_RIGHTS = Map.of(
-            "ADMIN", Arrays.asList("DASHBOARD", "USER_MANAGEMENT", "ROLE_MANAGEMENT", "MODULE_RIGHT_MANAGEMENT", "AUTHENTICATION", "SALES", "QA", "QC"),
-            "SALES", Arrays.asList("DASHBOARD", "SALES"),
-            "QA", Arrays.asList("DASHBOARD", "QA"),
-            "QC", Arrays.asList("DASHBOARD", "QC")
-    );
+    private static final List<String> REQUIRED_ROLES = List.of("ADMIN", "SALES", "QA", "QC");
 
     public static void seedRoles(RoleRepository roleRepository) {
-        List<String> requiredRoles = List.of("ADMIN", "SALES", "QA", "QC");
-
-        for (String roleName : requiredRoles) {
-            List<String> moduleRights = new ArrayList<>(ROLE_MODULE_RIGHTS.getOrDefault(roleName, List.of()));
+        for (String roleName : REQUIRED_ROLES) {
             Role existing = roleRepository.findByName(roleName).orElse(null);
             if (existing == null) {
-                Role role = new Role(roleName, moduleRights);
-                roleRepository.save(role);
-            } else {
-                existing.setModuleRights(moduleRights);
-                roleRepository.save(existing);
+                roleRepository.save(new Role(roleName));
             }
         }
     }
@@ -91,18 +75,13 @@ public class RoleInitializer {
 
             roles.drop();
 
-            for (String roleName : ROLE_MODULE_RIGHTS.keySet()) {
-                List<String> moduleRights = new ArrayList<>(ROLE_MODULE_RIGHTS.get(roleName));
+            for (String roleName : REQUIRED_ROLES) {
                 Document found = roles.find(Filters.eq("name", roleName)).first();
                 if (found == null) {
-                    Document doc = new Document("name", roleName).append("moduleRights", moduleRights);
+                    Document doc = new Document("name", roleName);
                     roles.insertOne(doc);
                     ObjectId id = doc.getObjectId("_id");
-                    System.out.println("Inserted role '" + roleName + "' with id " + id.toHexString() + " and moduleRights=" + moduleRights);
-                } else {
-                    roles.updateOne(Filters.eq("_id", found.get("_id")), Updates.set("moduleRights", moduleRights));
-                    ObjectId id = found.getObjectId("_id");
-                    System.out.println("Updated role '" + roleName + "' with id " + id.toHexString() + " and moduleRights=" + moduleRights);
+                    System.out.println("Inserted role '" + roleName + "' with id " + id.toHexString());
                 }
             }
 

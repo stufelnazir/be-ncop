@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
@@ -63,13 +62,7 @@ public class AuthController {
                 .map(Role::getName)
                 .collect(Collectors.toList());
 
-        // Collect all module rights from all roles
-        Set<String> moduleRights = new HashSet<>();
-        roles.forEach(role -> {
-            if (role.getModuleRights() != null) {
-                moduleRights.addAll(role.getModuleRights());
-            }
-        });
+        List<String> moduleRights = user.getModuleRights() != null ? new ArrayList<>(user.getModuleRights()) : new ArrayList<>();
 
         // Generate tokens
         String accessToken = jwtUtil.generateAccessToken(user.getEmail(), roleNames);
@@ -89,7 +82,7 @@ public class AuthController {
         response.setLastName(user.getLastName());
         response.setRoles(new HashSet<>(roleNames));
         response.setUserType(user.getUserType() != null ? user.getUserType().name() : null);
-        response.setModuleRights(new ArrayList<>(moduleRights));
+        response.setModuleRights(moduleRights);
         response.setLastLoginDate(user.getLastLoginDate());
         response.setLastLoginDateUtcDateTimeFormatted(lastLoginDateUtcFormatted);
         response.setLastLoginDateCurrentTimezoneDateFormatted(lastLoginDateTimezoneFormatted);
@@ -129,6 +122,8 @@ public class AuthController {
                     .map(Role::getName)
                     .collect(Collectors.toList());
 
+            List<String> moduleRights = user.getModuleRights() != null ? new ArrayList<>(user.getModuleRights()) : new ArrayList<>();
+
             // Generate new access token
             String newAccessToken = jwtUtil.generateAccessToken(user.getEmail(), roleNames);
             long expiresIn = jwtUtil.getAccessTokenExpiryMs() / 1000; // Convert to seconds
@@ -138,6 +133,11 @@ public class AuthController {
             response.setRefreshToken(refreshToken); // Return same refresh token
             response.setExpiresIn(expiresIn);
             response.setEmail(user.getEmail());
+            response.setFirstName(user.getFirstName());
+            response.setLastName(user.getLastName());
+            response.setRoles(new HashSet<>(roleNames));
+            response.setUserType(user.getUserType() != null ? user.getUserType().name() : null);
+            response.setModuleRights(moduleRights);
 
             return ResponseEntity.ok(response);
 

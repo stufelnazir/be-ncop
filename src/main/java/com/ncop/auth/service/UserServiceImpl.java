@@ -49,6 +49,7 @@ public class UserServiceImpl implements UserService {
         user.setFirstName(request.firstName());
         user.setLastName(request.lastName());
         user.setRoleIds(request.roleIds() != null ? request.roleIds() : new ArrayList<>());
+        user.setModuleRights(request.moduleRights() != null ? request.moduleRights() : new ArrayList<>());
         user.setUserStatus(request.userStatus() != null ? request.userStatus() : UserStatus.PENDING);
         user.setUserType(request.userType() != null ? request.userType() : UserType.EMPLOYEE);
 
@@ -78,6 +79,9 @@ public class UserServiceImpl implements UserService {
         if (request.roleIds() != null) {
             validateRoleIds(request.roleIds());
             user.setRoleIds(request.roleIds());
+        }
+        if (request.moduleRights() != null) {
+            user.setModuleRights(request.moduleRights());
         }
         if (request.userStatus() != null) {
             user.setUserStatus(request.userStatus());
@@ -153,6 +157,7 @@ public class UserServiceImpl implements UserService {
         response.setFullName(fullName);
         response.setRoleIds(user.getRoleIds());
         response.setRoleNames(roleNames);
+        response.setModuleRights(user.getModuleRights() != null ? new ArrayList<>(user.getModuleRights()) : new ArrayList<>());
         response.setUserStatus(user.getUserStatus());
         response.setUserType(user.getUserType());
         response.setCreatedOn(user.getCreatedOn());

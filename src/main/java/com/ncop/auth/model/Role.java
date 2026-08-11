@@ -8,9 +8,6 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Getter
 @Setter
 @NoArgsConstructor
@@ -24,10 +21,7 @@ public class Role {
     @Indexed(unique = true)
     private String name;
 
-    private List<String> moduleRights = new ArrayList<>();
-
-    public Role(String name, List<String> moduleRights) {
+    public Role(String name) {
         this.name = name;
-        this.moduleRights = moduleRights != null ? moduleRights : new ArrayList<>();
     }
 }

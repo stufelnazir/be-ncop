@@ -13,6 +13,7 @@ public record UpdateUserRequest(
         String firstName,
         String lastName,
         List<String> roleIds,
+        List<String> moduleRights,
         UserStatus userStatus,
         UserType userType
 ) {}

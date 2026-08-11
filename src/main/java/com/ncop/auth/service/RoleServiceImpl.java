@@ -9,7 +9,6 @@ import com.ncop.auth.exception.DuplicateResourceException;
 import com.ncop.auth.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -29,7 +28,6 @@ public class RoleServiceImpl implements RoleService {
 
         Role role = new Role();
         role.setName(request.name());
-        role.setModuleRights(request.moduleRights() != null ? request.moduleRights() : new ArrayList<>());
 
         Role saved = roleRepository.save(role);
         return toResponse(saved);
@@ -45,10 +43,6 @@ public class RoleServiceImpl implements RoleService {
                 throw new DuplicateResourceException("Role with name '" + request.name() + "' already exists");
             }
             role.setName(request.name());
-        }
-
-        if (request.moduleRights() != null) {
-            role.setModuleRights(request.moduleRights());
         }
 
         Role saved = roleRepository.save(role);
@@ -78,6 +72,6 @@ public class RoleServiceImpl implements RoleService {
     }
 
     private RoleResponse toResponse(Role role) {
-        return new RoleResponse(role.getRoleId(), role.getName(), role.getModuleRights());
+        return new RoleResponse(role.getRoleId(), role.getName());
     }
 }

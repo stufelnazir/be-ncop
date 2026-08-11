@@ -26,6 +26,7 @@ public class UserResponse {
     private String fullName;
     private List<String> roleIds;
     private List<String> roleNames;
+    private List<String> moduleRights;
     private UserStatus userStatus;
     private UserType userType;
 

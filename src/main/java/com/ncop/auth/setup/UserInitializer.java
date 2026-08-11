@@ -15,7 +15,6 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
-import java.util.stream.Collectors;
 
 /**
  * Standalone user seeder. It reads the MongoDB URI and database from application properties
@@ -102,6 +101,7 @@ public class UserInitializer {
 
                 ObjectId roleId = roleDoc.getObjectId("_id");
                 List<String> roleIds = Arrays.asList(roleId.toHexString());
+                List<String> moduleRights = getModuleRightsForRole(spec.roleName);
 
                 Document userDoc = new Document("username", email)
                         .append("email", email)
@@ -109,6 +109,7 @@ public class UserInitializer {
                         .append("firstName", capitalize(spec.local))
                         .append("lastName", "")
                         .append("roleIds", roleIds)
+                        .append("moduleRights", moduleRights)
                         .append("userStatus", "ACTIVE")
                         .append("userType", spec.userType)
                         .append("createdOn", new Date())
@@ -125,6 +126,22 @@ public class UserInitializer {
             e.printStackTrace();
             System.exit(2);
         }
+    }
+
+    private static List<String> getModuleRightsForRole(String roleName) {
+        if ("ADMIN".equals(roleName)) {
+            return Arrays.asList("DASHBOARD", "USER_MANAGEMENT", "ROLE_MANAGEMENT", "MODULE_RIGHT_MANAGEMENT", "AUTHENTICATION", "SALES", "QA", "QC");
+        }
+        if ("SALES".equals(roleName)) {
+            return Arrays.asList("DASHBOARD", "SALES");
+        }
+        if ("QA".equals(roleName)) {
+            return Arrays.asList("DASHBOARD", "QA");
+        }
+        if ("QC".equals(roleName)) {
+            return Arrays.asList("DASHBOARD", "QC");
+        }
+        return List.of();
     }
 
     private static String capitalize(String s) {

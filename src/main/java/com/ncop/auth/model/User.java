@@ -48,6 +48,8 @@ public class User {
 
     private List<String> roleIds = new ArrayList<>();
 
+    private List<String> moduleRights = new ArrayList<>();
+
     private UserStatus userStatus = UserStatus.PENDING;
 
     private UserType userType = UserType.EMPLOYEE;
