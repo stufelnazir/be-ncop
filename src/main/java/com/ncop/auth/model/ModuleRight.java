@@ -23,6 +23,8 @@ public class ModuleRight {
 
     private String name;
 
+    private String label;
+
     private String description;
 
     @CreatedDate

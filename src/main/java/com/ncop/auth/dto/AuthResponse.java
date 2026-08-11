@@ -41,7 +41,7 @@ public class AuthResponse {
     private String userType;
 
     @JsonProperty("moduleRights")
-    private List<String> moduleRights;
+    private List<ModuleRightResponse> moduleRights;
 
     @JsonProperty("lastLoginDate")
     private Instant lastLoginDate;
