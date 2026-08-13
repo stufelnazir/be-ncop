@@ -138,6 +138,10 @@ public class AuthController {
             String newAccessToken = jwtUtil.generateAccessToken(user.getEmail(), roleNames);
             long expiresIn = jwtUtil.getAccessTokenExpiryMs() / 1000; // Convert to seconds
 
+            // Format last login date
+            String lastLoginDateUtcFormatted = DateTimeFormatterUtil.formatToUtcDateTime(user.getLastLoginDate());
+            String lastLoginDateTimezoneFormatted = DateTimeFormatterUtil.formatToCurrentTimezoneDateTime(user.getLastLoginDate());
+
             AuthResponse response = new AuthResponse();
             response.setToken(newAccessToken);
             response.setRefreshToken(refreshToken); // Return same refresh token
@@ -148,6 +152,9 @@ public class AuthController {
             response.setRoles(new HashSet<>(roleNames));
             response.setUserType(user.getUserType() != null ? user.getUserType().name() : null);
             response.setModuleRights(moduleRights);
+            response.setLastLoginDate(user.getLastLoginDate());
+            response.setLastLoginDateUtcDateTimeFormatted(lastLoginDateUtcFormatted);
+            response.setLastLoginDateCurrentTimezoneDateFormatted(lastLoginDateTimezoneFormatted);
 
             return ResponseEntity.ok(response);
 
