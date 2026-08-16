@@ -1,0 +1,136 @@
+{
+	"info": {
+		"_postman_id": "b1b2c3d4-e5f6-7890-1234-567890abcdef",
+		"name": "Client Master API Tests",
+		"description": "Collection for testing the Client Master backend flow.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Create Client (Internal Flow)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"pm.environment.set(\"clientId\", jsonData.id);"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"customerCode\": \"CUST-MANUAL-001\",\r\n  \"customerType\": \"EXPORT\",\r\n  \"companyName\": \"Acme Global Industries\",\r\n  \"tradeName\": \"Acme Trading\",\r\n  \"annualTurnover\": 75000000, \r\n  \"paymentTerms\": {\r\n    \"advancePercentage\": 50,\r\n    \"beforeDispatchPercentage\": 50,\r\n    \"afterDispatchDays\": 0,\r\n    \"afterDispatchPercentage\": 0\r\n  },\r\n  \"pointOfContacts\": [\r\n    {\r\n      \"personName\": \"Suresh\",\r\n      \"designation\": \"QA Manager\",\r\n      \"department\": \"Quality\",\r\n      \"phone\": \"+91-9876543210\",\r\n      \"email\": \"suresh@acmeglobal.com\"\r\n    }\r\n  ]\r\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/clients",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"clients"
+					]
+				}
+			}
+		},
+		{
+			"name": "2. Submit Bank Details (Client Flow)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"bankDetail\": {\r\n    \"bankName\": \"HDFC Bank\",\r\n    \"accountNumber\": \"50100012345678\",\r\n    \"ifscCode\": \"HDFC0001234\",\r\n    \"swiftCode\": \"HDFCINCBBXXX\",\r\n    \"branchName\": \"Andheri West\"\r\n  }\r\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/clients/{{clientId}}/register",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"clients",
+						"{{clientId}}",
+						"register"
+					]
+				}
+			}
+		},
+		{
+			"name": "3. Upload Document (Client Flow)",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": []
+						},
+						{
+							"key": "documentType",
+							"value": "DRUG_LICENSE",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/clients/{{clientId}}/documents",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"clients",
+						"{{clientId}}",
+						"documents"
+					]
+				}
+			}
+		},
+		{
+			"name": "4. Verify Final Record",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8080/api/clients/{{clientId}}",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"clients",
+						"{{clientId}}"
+					]
+				}
+			}
+		}
+	]
+}

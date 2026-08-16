@@ -1,4 +1,19 @@
 package com.ncop.clientmaster.enums;
 
-public class DocumentType {
+public enum DocumentType {
+    DRUG_LICENSE,
+    WHOLESALE_LICENSE,
+    WHO_GMP_COPY,
+    STATE_GMP_GLP_COPY,
+    NEUTRAL_CODE_CERTIFICATE,
+    LIST_OF_INTERNATIONAL_ACCREDITATION,
+    MSME_CERTIFICATE,
+    FIRM_REGISTRATION_CERTIFICATE,
+    BANK_CHQ_LEAF,
+    IEC_CODE,
+    GST_RC_COPY,
+    PAN_CARD_COPY,
+    ADDRESS_PROOF_DOCS_COPY,
+    AADHAR_COPY,
+    CIN_COPY
 }
