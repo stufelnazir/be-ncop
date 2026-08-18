@@ -19,4 +19,6 @@ public interface UserService {
     void deleteUser(String userId);
 
     void updateLastLoginDate(String userId);
+
+    void resetPassword(String userId, String newPassword);
 }

@@ -43,6 +43,18 @@ public class UserController {
         return ResponseEntity.ok(userService.updateUser(id, request));
     }
 
+    @GetMapping("/count")
+    public ResponseEntity<Long> getUserCount() {
+        return ResponseEntity.ok((long) userService.getAllUsers().size());
+    }
+
+    @PutMapping("/{id}/password")
+    public ResponseEntity<Void> resetPassword(@PathVariable String id,
+                                              @Valid @RequestBody com.ncop.auth.dto.ResetPasswordRequest request) {
+        userService.resetPassword(id, request.password());
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable String id) {
         userService.deleteUser(id);
