@@ -55,6 +55,26 @@ public class ClientController {
         return ResponseEntity.ok(clientService.getAllClients());
     }
 
+    @GetMapping("/count")
+    public ResponseEntity<Long> getClientCount() {
+        return ResponseEntity.ok(clientRepository.count());
+    }
+
+    @GetMapping("/level-counts")
+    public ResponseEntity<java.util.Map<String, Long>> getClientLevelCounts() {
+        List<Client> allClients = clientService.getAllClients();
+        java.util.Map<String, Long> counts = allClients.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        c -> c.getClientLevel().name(),
+                        java.util.stream.Collectors.counting()
+                ));
+        // Ensure all levels are present in the response (even if 0)
+        for (com.ncop.modules.clients.enums.ClientLevel level : com.ncop.modules.clients.enums.ClientLevel.values()) {
+            counts.putIfAbsent(level.name(), 0L);
+        }
+        return ResponseEntity.ok(counts);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Client> getClientById(@PathVariable String id) {
         return clientService.getClientById(id)
