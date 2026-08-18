@@ -14,6 +14,7 @@ public class PointOfContact {
     private String department;
     private String phone;
     private String email;
+    private Boolean primary;
 
     private Client client;
 

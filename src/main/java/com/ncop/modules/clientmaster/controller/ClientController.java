@@ -1,10 +1,16 @@
 package com.ncop.modules.clientmaster.controller;
 
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.ncop.common.services.EmailService;
 import com.ncop.modules.clientmaster.dto.ClientRegistrationDto;
 import com.ncop.modules.clientmaster.dto.ClientRequestDto;
 import com.ncop.modules.clientmaster.entity.Client;
@@ -22,7 +29,6 @@ import com.ncop.modules.clientmaster.entity.ClientDocument;
 import com.ncop.modules.clientmaster.enums.DocumentType;
 import com.ncop.modules.clientmaster.repository.ClientRepository;
 import com.ncop.modules.clientmaster.services.ClientService;
-import com.ncop.common.services.EmailService;
 import com.ncop.modules.clientmaster.services.FileStorageService;
 
 import jakarta.validation.Valid;
@@ -76,7 +82,7 @@ public class ClientController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    // Client facing endpoint to upload a document
+    // Upload document endpoint (handles both GCS & Local via FileStorageService)
     @PostMapping("/{id}/documents")
     public ResponseEntity<Client> uploadDocument(
             @PathVariable String id,
@@ -84,17 +90,136 @@ public class ClientController {
             @RequestParam("documentType") DocumentType documentType) {
         
         return clientRepository.findById(id).map(client -> {
-            String fileUrl = fileStorageService.storeFile(file, id, documentType.name());
-            
+            FileStorageService.FileStorageResult result = fileStorageService.storeFile(file, id, documentType.name());
+            if (result == null) {
+                return ResponseEntity.badRequest().<Client>build();
+            }
+
+            String docId = UUID.randomUUID().toString();
+            String viewUrl = "/api/clients/" + id + "/documents/" + docId + "/view";
+
             ClientDocument doc = new ClientDocument();
-            doc.setId(UUID.randomUUID().toString());
+            doc.setId(docId);
             doc.setDocumentType(documentType);
-            doc.setFileUrl(fileUrl);
-            
+            doc.setFileName(result.getFileName());
+            doc.setOriginalFileName(result.getOriginalFileName());
+            doc.setContentType(result.getContentType());
+            doc.setFileSize(result.getFileSize());
+            doc.setStorageType(result.getStorageType());
+            doc.setStoragePath(result.getStoragePath());
+            doc.setFileUrl(viewUrl);
+            doc.setUploadedAt(new Date());
+
+            if (client.getDocuments() == null) {
+                client.setDocuments(new ArrayList<>());
+            }
+
+            // Replace existing doc of same type if already uploaded
+            client.getDocuments().removeIf(d -> d.getDocumentType() == documentType);
             client.getDocuments().add(doc);
+
             Client updatedClient = clientRepository.save(client);
-            
             return ResponseEntity.ok(updatedClient);
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    // Stream document inline for in-browser / in-app PDF & Doc viewing
+    @GetMapping("/{id}/documents/{docId}/view")
+    public ResponseEntity<byte[]> viewDocument(@PathVariable String id, @PathVariable String docId) {
+        Optional<Client> clientOpt = clientRepository.findById(id);
+        if (clientOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Client client = clientOpt.get();
+        if (client.getDocuments() == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Optional<ClientDocument> docOpt = client.getDocuments().stream()
+                .filter(d -> docId.equals(d.getId()))
+                .findFirst();
+
+        if (docOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        ClientDocument doc = docOpt.get();
+        byte[] data = fileStorageService.loadFileBytes(doc);
+        if (data == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        if (doc.getContentType() != null) {
+            try {
+                mediaType = MediaType.parseMediaType(doc.getContentType());
+            } catch (Exception ignored) {}
+        }
+
+        String displayName = doc.getOriginalFileName() != null ? doc.getOriginalFileName() : (doc.getFileName() != null ? doc.getFileName() : "document");
+
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + displayName + "\"")
+                .body(data);
+    }
+
+    // Download document as attachment
+    @GetMapping("/{id}/documents/{docId}/download")
+    public ResponseEntity<byte[]> downloadDocument(@PathVariable String id, @PathVariable String docId) {
+        Optional<Client> clientOpt = clientRepository.findById(id);
+        if (clientOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Client client = clientOpt.get();
+        if (client.getDocuments() == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Optional<ClientDocument> docOpt = client.getDocuments().stream()
+                .filter(d -> docId.equals(d.getId()))
+                .findFirst();
+
+        if (docOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        ClientDocument doc = docOpt.get();
+        byte[] data = fileStorageService.loadFileBytes(doc);
+        if (data == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        String displayName = doc.getOriginalFileName() != null ? doc.getOriginalFileName() : (doc.getFileName() != null ? doc.getFileName() : "document");
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + displayName + "\"")
+                .body(data);
+    }
+
+    // Delete document
+    @DeleteMapping("/{id}/documents/{docId}")
+    public ResponseEntity<Client> deleteDocument(@PathVariable String id, @PathVariable String docId) {
+        return clientRepository.findById(id).map(client -> {
+            if (client.getDocuments() == null) {
+                return ResponseEntity.notFound().<Client>build();
+            }
+
+            Optional<ClientDocument> docOpt = client.getDocuments().stream()
+                    .filter(d -> docId.equals(d.getId()))
+                    .findFirst();
+
+            if (docOpt.isPresent()) {
+                ClientDocument doc = docOpt.get();
+                fileStorageService.deleteFile(doc);
+                client.getDocuments().remove(doc);
+                Client updatedClient = clientRepository.save(client);
+                return ResponseEntity.ok(updatedClient);
+            }
+            return ResponseEntity.notFound().<Client>build();
         }).orElse(ResponseEntity.notFound().build());
     }
 

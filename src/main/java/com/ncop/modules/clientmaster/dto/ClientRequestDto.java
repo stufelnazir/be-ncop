@@ -14,8 +14,6 @@ import lombok.Data;
 
 @Data
 public class ClientRequestDto {
-    
-    @NotBlank(message = "Customer code is required")
     private String customerCode;
 
     @NotNull(message = "Customer type is required")

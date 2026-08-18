@@ -24,7 +24,15 @@ public class ClientService {
 
     public Client createClient(ClientRequestDto requestDto) {
         Client client = new Client();
-        client.setCustomerCode(requestDto.getCustomerCode());
+        
+        // Auto-generate customer code
+        long count = clientRepository.count();
+        String customerCode = String.format("CUST-%06d", count + 1);
+        while (clientRepository.existsByCustomerCode(customerCode)) {
+            count++;
+            customerCode = String.format("CUST-%06d", count + 1);
+        }
+        client.setCustomerCode(customerCode);
         client.setCustomerType(requestDto.getCustomerType());
         client.setCompanyName(requestDto.getCompanyName());
         client.setTradeName(requestDto.getTradeName());
