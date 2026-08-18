@@ -1,4 +1,4 @@
-package com.ncop.modules.clientmaster.entity;
+package com.ncop.modules.clients.entity;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -8,8 +8,8 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.ncop.modules.clientmaster.enums.CustomerType;
-import com.ncop.modules.clientmaster.enums.ClientLevel;
+import com.ncop.modules.clients.enums.CustomerType;
+import com.ncop.modules.clients.enums.ClientLevel;
 
 @Getter
 @Setter

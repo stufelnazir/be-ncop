@@ -1,4 +1,4 @@
-package com.ncop.modules.clientmaster.services;
+package com.ncop.modules.clients.services;
 
 import java.util.List;
 import java.util.Optional;
@@ -6,10 +6,10 @@ import java.util.Optional;
 import com.ncop.common.services.EmailService;
 import org.springframework.stereotype.Service;
 
-import com.ncop.modules.clientmaster.dto.ClientRequestDto;
-import com.ncop.modules.clientmaster.entity.Client;
-import com.ncop.modules.clientmaster.entity.PointOfContact;
-import com.ncop.modules.clientmaster.repository.ClientRepository;
+import com.ncop.modules.clients.dto.ClientRequestDto;
+import com.ncop.modules.clients.entity.Client;
+import com.ncop.modules.clients.entity.PointOfContact;
+import com.ncop.modules.clients.repository.ClientRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

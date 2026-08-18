@@ -1,4 +1,4 @@
-package com.ncop.modules.clientmaster.controller;
+package com.ncop.modules.clients.controller;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -22,14 +22,14 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.ncop.common.services.EmailService;
-import com.ncop.modules.clientmaster.dto.ClientRegistrationDto;
-import com.ncop.modules.clientmaster.dto.ClientRequestDto;
-import com.ncop.modules.clientmaster.entity.Client;
-import com.ncop.modules.clientmaster.entity.ClientDocument;
-import com.ncop.modules.clientmaster.enums.DocumentType;
-import com.ncop.modules.clientmaster.repository.ClientRepository;
-import com.ncop.modules.clientmaster.services.ClientService;
-import com.ncop.modules.clientmaster.services.FileStorageService;
+import com.ncop.modules.clients.dto.ClientRegistrationDto;
+import com.ncop.modules.clients.dto.ClientRequestDto;
+import com.ncop.modules.clients.entity.Client;
+import com.ncop.modules.clients.entity.ClientDocument;
+import com.ncop.modules.clients.enums.DocumentType;
+import com.ncop.modules.clients.repository.ClientRepository;
+import com.ncop.modules.clients.services.ClientService;
+import com.ncop.modules.clients.services.FileStorageService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

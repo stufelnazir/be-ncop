@@ -1,4 +1,4 @@
-package com.ncop.modules.clientmaster.services;
+package com.ncop.modules.clients.services;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -18,7 +18,7 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
-import com.ncop.modules.clientmaster.entity.ClientDocument;
+import com.ncop.modules.clients.entity.ClientDocument;
 
 import jakarta.annotation.PostConstruct;
 import lombok.AllArgsConstructor;

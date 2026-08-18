@@ -1,8 +1,8 @@
-package com.ncop.modules.clientmaster.entity;
+package com.ncop.modules.clients.entity;
 
 import java.util.Date;
 
-import com.ncop.modules.clientmaster.enums.DocumentType;
+import com.ncop.modules.clients.enums.DocumentType;
 import lombok.Getter;
 import lombok.Setter;
 

@@ -1,6 +1,6 @@
-package com.ncop.modules.clientmaster.entity;
+package com.ncop.modules.clients.entity;
 
-import com.ncop.modules.clientmaster.enums.AddressType;
+import com.ncop.modules.clients.enums.AddressType;
 import lombok.Getter;
 import lombok.Setter;
 

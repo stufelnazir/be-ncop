@@ -1,4 +1,4 @@
-package com.ncop.modules.clientmaster.entity;
+package com.ncop.modules.clients.entity;
 
 import lombok.Getter;
 import lombok.Setter;
