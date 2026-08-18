@@ -1,20 +1,31 @@
 package com.ncop.auth.service;
 
 import com.ncop.auth.model.ModuleRight;
+import com.ncop.auth.model.Role;
+import com.ncop.auth.model.User;
 import com.ncop.auth.repository.ModuleRightRepository;
+import com.ncop.auth.repository.RoleRepository;
+import com.ncop.auth.repository.UserRepository;
 import com.ncop.auth.exception.DuplicateResourceException;
 import com.ncop.auth.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
 
 @Service
 public class ModuleRightService {
 
     private final ModuleRightRepository moduleRightRepository;
+    private final RoleRepository roleRepository;
+    private final UserRepository userRepository;
 
-    public ModuleRightService(ModuleRightRepository moduleRightRepository) {
+    public ModuleRightService(ModuleRightRepository moduleRightRepository,
+                              RoleRepository roleRepository,
+                              UserRepository userRepository) {
         this.moduleRightRepository = moduleRightRepository;
+        this.roleRepository = roleRepository;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -25,9 +36,17 @@ public class ModuleRightService {
             throw new IllegalArgumentException("Module right name is required");
         }
 
-        if (moduleRightRepository.findByName(moduleRight.getName()).isPresent()) {
-            throw new DuplicateResourceException("Module right with name '" + moduleRight.getName() + "' already exists");
+        String name = moduleRight.getName().trim().toUpperCase();
+        if (moduleRightRepository.findByName(name).isPresent()) {
+            throw new DuplicateResourceException("Module right with name '" + name + "' already exists");
         }
+
+        moduleRight.setName(name);
+        if (moduleRight.getLabel() == null || moduleRight.getLabel().isBlank()) {
+            moduleRight.setLabel(formatLabel(name));
+        }
+        moduleRight.setCreatedOn(Instant.now());
+        moduleRight.setLastUpdatedOn(Instant.now());
 
         return moduleRightRepository.save(moduleRight);
     }
@@ -44,7 +63,7 @@ public class ModuleRightService {
      * Get module right by name
      */
     public ModuleRight getModuleRightByName(String name) {
-        return moduleRightRepository.findByName(name)
+        return moduleRightRepository.findByName(name.toUpperCase())
                 .orElseThrow(() -> new ResourceNotFoundException("Module right not found with name: " + name));
     }
 
@@ -56,17 +75,21 @@ public class ModuleRightService {
     }
 
     /**
-     * Update module right
+     * Update module right and propagate changes to Roles and Users
      */
     public ModuleRight updateModuleRight(String id, ModuleRight moduleRight) {
         ModuleRight existing = getModuleRightById(id);
+        String oldName = existing.getName();
+        boolean nameChanged = false;
 
         if (moduleRight.getName() != null && !moduleRight.getName().isBlank()) {
-            if (!moduleRight.getName().equals(existing.getName()) &&
-                    moduleRightRepository.findByName(moduleRight.getName()).isPresent()) {
-                throw new DuplicateResourceException("Module right with name '" + moduleRight.getName() + "' already exists");
+            String newName = moduleRight.getName().trim().toUpperCase();
+            if (!newName.equalsIgnoreCase(existing.getName()) &&
+                    moduleRightRepository.findByName(newName).isPresent()) {
+                throw new DuplicateResourceException("Module right with name '" + newName + "' already exists");
             }
-            existing.setName(moduleRight.getName());
+            existing.setName(newName);
+            nameChanged = !newName.equals(oldName);
         }
 
         if (moduleRight.getLabel() != null) {
@@ -77,17 +100,73 @@ public class ModuleRightService {
             existing.setDescription(moduleRight.getDescription());
         }
 
-        return moduleRightRepository.save(existing);
+        existing.setLastUpdatedOn(Instant.now());
+        ModuleRight saved = moduleRightRepository.save(existing);
+
+        // Propagate renamed module right key to all Roles and Users
+        if (nameChanged && oldName != null) {
+            String newName = saved.getName();
+            // Update in all Roles
+            List<Role> allRoles = roleRepository.findAll();
+            for (Role r : allRoles) {
+                if (r.getModuleRights() != null && r.getModuleRights().contains(oldName)) {
+                    r.getModuleRights().remove(oldName);
+                    r.getModuleRights().add(newName);
+                    roleRepository.save(r);
+                }
+            }
+            // Update in all Users
+            List<User> allUsers = userRepository.findAll();
+            for (User u : allUsers) {
+                if (u.getModuleRights() != null && u.getModuleRights().contains(oldName)) {
+                    u.getModuleRights().remove(oldName);
+                    u.getModuleRights().add(newName);
+                    userRepository.save(u);
+                }
+            }
+        }
+
+        return saved;
     }
 
     /**
-     * Delete module right by ID
+     * Delete module right and remove from all Roles and Users
      */
     public void deleteModuleRight(String id) {
-        if (!moduleRightRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Module right not found with id: " + id);
+        ModuleRight existing = moduleRightRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Module right not found with id: " + id));
+
+        String name = existing.getName();
+        if (name != null) {
+            // Remove from all roles
+            List<Role> allRoles = roleRepository.findAll();
+            for (Role r : allRoles) {
+                if (r.getModuleRights() != null && r.getModuleRights().remove(name)) {
+                    roleRepository.save(r);
+                }
+            }
+            // Remove from all users
+            List<User> allUsers = userRepository.findAll();
+            for (User u : allUsers) {
+                if (u.getModuleRights() != null && u.getModuleRights().remove(name)) {
+                    userRepository.save(u);
+                }
+            }
         }
+
         moduleRightRepository.deleteById(id);
     }
-}
 
+    private String formatLabel(String name) {
+        String[] parts = name.split("[_-]");
+        StringBuilder sb = new StringBuilder();
+        for (String part : parts) {
+            if (!part.isBlank()) {
+                if (!sb.isEmpty()) sb.append(" ");
+                sb.append(Character.toUpperCase(part.charAt(0)))
+                  .append(part.substring(1).toLowerCase());
+            }
+        }
+        return sb.toString();
+    }
+}
