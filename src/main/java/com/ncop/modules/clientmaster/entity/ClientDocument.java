@@ -1,6 +1,6 @@
-package com.ncop.clientmaster.entity;
+package com.ncop.modules.clientmaster.entity;
 
-import com.ncop.clientmaster.enums.DocumentType;
+import com.ncop.modules.clientmaster.enums.DocumentType;
 import lombok.Getter;
 import lombok.Setter;
 

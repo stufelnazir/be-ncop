@@ -1,6 +1,6 @@
-package com.ncop.clientmaster.dto;
+package com.ncop.modules.clientmaster.dto;
 
-import com.ncop.clientmaster.entity.BankDetail;
+import com.ncop.modules.clientmaster.entity.BankDetail;
 import lombok.Data;
 
 @Data

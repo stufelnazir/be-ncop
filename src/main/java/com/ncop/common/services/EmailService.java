@@ -1,4 +1,4 @@
-package com.ncop.clientmaster.services;
+package com.ncop.common.services;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;

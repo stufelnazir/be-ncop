@@ -1,12 +1,12 @@
-package com.ncop.clientmaster.dto;
+package com.ncop.modules.clientmaster.dto;
 
 import java.math.BigDecimal;
 import java.util.List;
 
-import com.ncop.clientmaster.entity.Address;
-import com.ncop.clientmaster.entity.PaymentTerms;
-import com.ncop.clientmaster.entity.PointOfContact;
-import com.ncop.clientmaster.enums.CustomerType;
+import com.ncop.modules.clientmaster.entity.Address;
+import com.ncop.modules.clientmaster.entity.PaymentTerms;
+import com.ncop.modules.clientmaster.entity.PointOfContact;
+import com.ncop.modules.clientmaster.enums.CustomerType;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

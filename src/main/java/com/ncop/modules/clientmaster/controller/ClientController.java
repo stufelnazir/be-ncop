@@ -1,4 +1,4 @@
-package com.ncop.clientmaster.controller;
+package com.ncop.modules.clientmaster.controller;
 
 import java.util.List;
 import java.util.UUID;
@@ -15,15 +15,15 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.ncop.clientmaster.dto.ClientRegistrationDto;
-import com.ncop.clientmaster.dto.ClientRequestDto;
-import com.ncop.clientmaster.entity.Client;
-import com.ncop.clientmaster.entity.ClientDocument;
-import com.ncop.clientmaster.enums.DocumentType;
-import com.ncop.clientmaster.repository.ClientRepository;
-import com.ncop.clientmaster.services.ClientService;
-import com.ncop.clientmaster.services.EmailService;
-import com.ncop.clientmaster.services.FileStorageService;
+import com.ncop.modules.clientmaster.dto.ClientRegistrationDto;
+import com.ncop.modules.clientmaster.dto.ClientRequestDto;
+import com.ncop.modules.clientmaster.entity.Client;
+import com.ncop.modules.clientmaster.entity.ClientDocument;
+import com.ncop.modules.clientmaster.enums.DocumentType;
+import com.ncop.modules.clientmaster.repository.ClientRepository;
+import com.ncop.modules.clientmaster.services.ClientService;
+import com.ncop.common.services.EmailService;
+import com.ncop.modules.clientmaster.services.FileStorageService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

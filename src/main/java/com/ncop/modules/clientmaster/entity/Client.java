@@ -1,4 +1,4 @@
-package com.ncop.clientmaster.entity;
+package com.ncop.modules.clientmaster.entity;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -7,13 +7,9 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import com.ncop.clientmaster.entity.Address;
-import com.ncop.clientmaster.entity.PointOfContact;
-import com.ncop.clientmaster.entity.ClientDocument;
-import com.ncop.clientmaster.entity.BankDetail;
-import com.ncop.clientmaster.entity.PaymentTerms;
-import com.ncop.clientmaster.enums.CustomerType;
-import com.ncop.clientmaster.enums.ClientLevel;
+
+import com.ncop.modules.clientmaster.enums.CustomerType;
+import com.ncop.modules.clientmaster.enums.ClientLevel;
 
 @Getter
 @Setter

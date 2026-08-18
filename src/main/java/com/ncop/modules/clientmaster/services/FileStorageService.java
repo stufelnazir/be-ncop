@@ -1,4 +1,4 @@
-package com.ncop.clientmaster.services;
+package com.ncop.modules.clientmaster.services;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;

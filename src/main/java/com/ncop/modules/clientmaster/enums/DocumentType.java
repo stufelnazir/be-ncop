@@ -1,4 +1,4 @@
-package com.ncop.clientmaster.enums;
+package com.ncop.modules.clientmaster.enums;
 
 public enum DocumentType {
     DRUG_LICENSE,
