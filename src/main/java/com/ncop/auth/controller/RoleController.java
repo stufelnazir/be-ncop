@@ -28,6 +28,15 @@ public class RoleController {
     }
 
     @GetMapping
+    public ResponseEntity<com.ncop.common.dto.PageResponse<RoleResponse>> getRoles(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        return ResponseEntity.ok(roleService.getRoles(pageable, search));
+    }
+
+    @GetMapping("/all")
     public ResponseEntity<List<RoleResponse>> getAllRoles() {
         return ResponseEntity.ok(roleService.getAllRoles());
     }

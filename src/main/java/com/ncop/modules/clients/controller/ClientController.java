@@ -51,6 +51,15 @@ public class ClientController {
     }
 
     @GetMapping
+    public ResponseEntity<com.ncop.common.dto.PageResponse<Client>> getClients(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        return ResponseEntity.ok(clientService.getClients(pageable, search));
+    }
+
+    @GetMapping("/all")
     public ResponseEntity<List<Client>> getAllClients() {
         return ResponseEntity.ok(clientService.getAllClients());
     }

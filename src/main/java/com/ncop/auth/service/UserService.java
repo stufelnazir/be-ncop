@@ -16,6 +16,8 @@ public interface UserService {
 
     List<UserResponse> getAllUsers();
 
+    com.ncop.common.dto.PageResponse<UserResponse> getUsers(org.springframework.data.domain.Pageable pageable, String search, String status, String role);
+
     void deleteUser(String userId);
 
     void updateLastLoginDate(String userId);

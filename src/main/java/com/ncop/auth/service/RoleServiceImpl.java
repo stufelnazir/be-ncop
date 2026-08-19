@@ -89,6 +89,27 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
+    public com.ncop.common.dto.PageResponse<RoleResponse> getRoles(org.springframework.data.domain.Pageable pageable, String search) {
+        List<RoleResponse> all = roleRepository.findAll().stream()
+                .map(this::toResponse)
+                .toList();
+
+        List<RoleResponse> filtered = all.stream().filter(r -> {
+            if (search == null || search.isBlank()) return true;
+            return (r.name() != null && r.name().toLowerCase().contains(search.toLowerCase())) ||
+                    (r.description() != null && r.description().toLowerCase().contains(search.toLowerCase()));
+        }).toList();
+
+        int pageSize = pageable.getPageSize();
+        int pageNumber = pageable.getPageNumber();
+        int fromIndex = Math.min(pageNumber * pageSize, filtered.size());
+        int toIndex = Math.min(fromIndex + pageSize, filtered.size());
+        List<RoleResponse> paged = filtered.subList(fromIndex, toIndex);
+
+        return com.ncop.common.dto.PageResponse.of(paged, pageNumber, pageSize, filtered.size());
+    }
+
+    @Override
     public void deleteRole(String roleId) {
         if (!roleRepository.existsById(roleId)) {
             throw new ResourceNotFoundException("Role not found with id: " + roleId);

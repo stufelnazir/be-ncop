@@ -61,6 +61,26 @@ public class ClientService {
         return clientRepository.findAll();
     }
 
+    public com.ncop.common.dto.PageResponse<Client> getClients(org.springframework.data.domain.Pageable pageable, String search) {
+        List<Client> all = clientRepository.findAll();
+        List<Client> filtered = all.stream().filter(c -> {
+            if (search == null || search.isBlank()) return true;
+            String q = search.toLowerCase();
+            return (c.getCompanyName() != null && c.getCompanyName().toLowerCase().contains(q)) ||
+                    (c.getCustomerCode() != null && c.getCustomerCode().toLowerCase().contains(q)) ||
+                    (c.getTradeName() != null && c.getTradeName().toLowerCase().contains(q)) ||
+                    (c.getAddresses() != null && c.getAddresses().stream().anyMatch(a -> a.getCountry() != null && a.getCountry().toLowerCase().contains(q)));
+        }).toList();
+
+        int pageSize = pageable.getPageSize();
+        int pageNumber = pageable.getPageNumber();
+        int fromIndex = Math.min(pageNumber * pageSize, filtered.size());
+        int toIndex = Math.min(fromIndex + pageSize, filtered.size());
+        List<Client> paged = filtered.subList(fromIndex, toIndex);
+
+        return com.ncop.common.dto.PageResponse.of(paged, pageNumber, pageSize, filtered.size());
+    }
+
     public Optional<Client> getClientById(String id) {
         return clientRepository.findById(id);
     }

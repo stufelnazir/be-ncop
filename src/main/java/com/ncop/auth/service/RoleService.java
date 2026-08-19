@@ -16,5 +16,7 @@ public interface RoleService {
 
     List<RoleResponse> getAllRoles();
 
+    com.ncop.common.dto.PageResponse<RoleResponse> getRoles(org.springframework.data.domain.Pageable pageable, String search);
+
     void deleteRole(String roleId);
 }

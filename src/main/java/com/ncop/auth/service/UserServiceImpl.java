@@ -109,6 +109,46 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public com.ncop.common.dto.PageResponse<UserResponse> getUsers(org.springframework.data.domain.Pageable pageable, String search, String status, String role) {
+        List<UserResponse> all = userRepository.findAll().stream()
+                .map(this::toResponse)
+                .toList();
+
+        // Apply filters
+        List<UserResponse> filtered = all.stream().filter(u -> {
+            boolean matchesSearch = search == null || search.isBlank() ||
+                    (u.getEmail() != null && u.getEmail().toLowerCase().contains(search.toLowerCase())) ||
+                    (u.getFullName() != null && u.getFullName().toLowerCase().contains(search.toLowerCase())) ||
+                    (u.getUsername() != null && u.getUsername().toLowerCase().contains(search.toLowerCase())) ||
+                    (u.getRoleNames() != null && u.getRoleNames().stream().anyMatch(r -> r.toLowerCase().contains(search.toLowerCase())));
+
+            boolean matchesStatus = true;
+            if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
+                if ("ROLE_INACTIVE".equalsIgnoreCase(status)) {
+                    matchesStatus = !u.isHasActiveRole() && u.getRoleIds() != null && !u.getRoleIds().isEmpty();
+                } else {
+                    matchesStatus = u.getUserStatus() != null && u.getUserStatus().name().equalsIgnoreCase(status);
+                }
+            }
+
+            boolean matchesRole = true;
+            if (role != null && !role.isBlank() && !"ALL".equalsIgnoreCase(role)) {
+                matchesRole = u.getRoleNames() != null && u.getRoleNames().stream().anyMatch(r -> r.equalsIgnoreCase(role));
+            }
+
+            return matchesSearch && matchesStatus && matchesRole;
+        }).toList();
+
+        int pageSize = pageable.getPageSize();
+        int pageNumber = pageable.getPageNumber();
+        int fromIndex = Math.min(pageNumber * pageSize, filtered.size());
+        int toIndex = Math.min(fromIndex + pageSize, filtered.size());
+        List<UserResponse> paged = filtered.subList(fromIndex, toIndex);
+
+        return com.ncop.common.dto.PageResponse.of(paged, pageNumber, pageSize, filtered.size());
+    }
+
+    @Override
     public void deleteUser(String userId) {
         if (!userRepository.existsById(userId)) {
             throw new ResourceNotFoundException("User not found with id: " + userId);

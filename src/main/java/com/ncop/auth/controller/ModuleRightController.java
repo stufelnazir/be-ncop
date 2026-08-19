@@ -46,9 +46,21 @@ public class ModuleRightController {
     }
 
     /**
-     * Get all module rights
+     * Get paginated module rights
      */
     @GetMapping
+    public ResponseEntity<com.ncop.common.dto.PageResponse<ModuleRight>> getModuleRights(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        return ResponseEntity.ok(moduleRightService.getModuleRights(pageable, search));
+    }
+
+    /**
+     * Get all module rights (unpaginated for checklists & dropdowns)
+     */
+    @GetMapping("/all")
     public ResponseEntity<List<ModuleRight>> getAllModuleRights() {
         List<ModuleRight> moduleRights = moduleRightService.getAllModuleRights();
         return ResponseEntity.ok(moduleRights);

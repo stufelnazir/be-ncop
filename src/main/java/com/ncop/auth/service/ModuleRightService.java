@@ -75,6 +75,27 @@ public class ModuleRightService {
     }
 
     /**
+     * Get paginated and filtered module rights
+     */
+    public com.ncop.common.dto.PageResponse<ModuleRight> getModuleRights(org.springframework.data.domain.Pageable pageable, String search) {
+        List<ModuleRight> all = moduleRightRepository.findAll();
+        List<ModuleRight> filtered = all.stream().filter(mr -> {
+            if (search == null || search.isBlank()) return true;
+            return (mr.getName() != null && mr.getName().toLowerCase().contains(search.toLowerCase())) ||
+                    (mr.getLabel() != null && mr.getLabel().toLowerCase().contains(search.toLowerCase())) ||
+                    (mr.getDescription() != null && mr.getDescription().toLowerCase().contains(search.toLowerCase()));
+        }).toList();
+
+        int pageSize = pageable.getPageSize();
+        int pageNumber = pageable.getPageNumber();
+        int fromIndex = Math.min(pageNumber * pageSize, filtered.size());
+        int toIndex = Math.min(fromIndex + pageSize, filtered.size());
+        List<ModuleRight> paged = filtered.subList(fromIndex, toIndex);
+
+        return com.ncop.common.dto.PageResponse.of(paged, pageNumber, pageSize, filtered.size());
+    }
+
+    /**
      * Update module right and propagate changes to Roles and Users
      */
     public ModuleRight updateModuleRight(String id, ModuleRight moduleRight) {
