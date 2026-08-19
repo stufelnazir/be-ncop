@@ -147,14 +147,17 @@ public class UserServiceImpl implements UserService {
         // Format dates in user object
         user.formatAllDates();
 
-        // Resolve role names from role IDs
+        // Resolve role names and active status from role IDs
         List<String> roleNames = new ArrayList<>();
+        boolean hasActiveRole = true;
         if (user.getRoleIds() != null && !user.getRoleIds().isEmpty()) {
             List<Role> roles = roleRepository.findAllById(user.getRoleIds());
             roleNames = roles.stream().map(Role::getName).toList();
+            hasActiveRole = roles.stream().anyMatch(Role::isActive);
         }
 
         String fullName = buildFullName(user.getFirstName(), user.getLastName());
+        boolean effectiveActive = (user.getUserStatus() == UserStatus.ACTIVE) && hasActiveRole;
 
         UserResponse response = new UserResponse();
         response.setId(user.getId());
@@ -168,6 +171,8 @@ public class UserServiceImpl implements UserService {
         response.setModuleRights(user.getModuleRights() != null ? new ArrayList<>(user.getModuleRights()) : new ArrayList<>());
         response.setUserStatus(user.getUserStatus());
         response.setUserType(user.getUserType());
+        response.setHasActiveRole(hasActiveRole);
+        response.setEffectiveActive(effectiveActive);
         response.setCreatedOn(user.getCreatedOn());
         response.setLastUpdatedOn(user.getLastUpdatedOn());
         response.setLastLoginDate(user.getLastLoginDate());

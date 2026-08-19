@@ -29,6 +29,8 @@ public class UserResponse {
     private List<String> moduleRights;
     private UserStatus userStatus;
     private UserType userType;
+    private boolean hasActiveRole = true;
+    private boolean effectiveActive = true;
 
     @JsonProperty("createdOn")
     private Instant createdOn;

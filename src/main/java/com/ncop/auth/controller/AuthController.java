@@ -62,15 +62,30 @@ public class AuthController {
 
         User user = userOpt.get();
 
+        // Check if user account is active
+        if (user.getUserStatus() != null && user.getUserStatus() != com.ncop.auth.enums.UserStatus.ACTIVE) {
+            ErrorResponse error = new ErrorResponse(403, "Forbidden", "Account is " + user.getUserStatus().name().toLowerCase() + ". Please contact administrator.");
+            return ResponseEntity.status(403).body(error);
+        }
+
+        // Resolve roles from role IDs and verify at least one role is active
+        List<Role> roles = roleRepository.findAllById(user.getRoleIds());
+        if (user.getRoleIds() != null && !user.getRoleIds().isEmpty()) {
+            boolean hasActiveRole = roles.stream().anyMatch(Role::isActive);
+            if (!hasActiveRole) {
+                ErrorResponse error = new ErrorResponse(403, "Forbidden", "Your assigned role is currently inactive. Please contact administrator.");
+                return ResponseEntity.status(403).body(error);
+            }
+        }
+
+        List<String> roleNames = roles.stream()
+                .filter(Role::isActive)
+                .map(Role::getName)
+                .collect(Collectors.toList());
+
         // Update last login date
         userService.updateLastLoginDate(user.getId());
         user.setLastLoginDate(userService.getUserById(user.getId()).getLastLoginDate());
-
-        // Resolve roles from role IDs
-        List<Role> roles = roleRepository.findAllById(user.getRoleIds());
-        List<String> roleNames = roles.stream()
-                .map(Role::getName)
-                .collect(Collectors.toList());
 
         List<ModuleRightResponse> moduleRights = buildModuleRightResponses(user);
 
@@ -126,9 +141,24 @@ public class AuthController {
 
             User user = userOpt.get();
 
-            // Resolve roles from role IDs
+            // Check if user account is active
+            if (user.getUserStatus() != null && user.getUserStatus() != com.ncop.auth.enums.UserStatus.ACTIVE) {
+                ErrorResponse error = new ErrorResponse(403, "Forbidden", "Account is " + user.getUserStatus().name().toLowerCase() + ". Please contact administrator.");
+                return ResponseEntity.status(403).body(error);
+            }
+
+            // Resolve roles from role IDs and verify at least one role is active
             List<Role> roles = roleRepository.findAllById(user.getRoleIds());
+            if (user.getRoleIds() != null && !user.getRoleIds().isEmpty()) {
+                boolean hasActiveRole = roles.stream().anyMatch(Role::isActive);
+                if (!hasActiveRole) {
+                    ErrorResponse error = new ErrorResponse(403, "Forbidden", "Your assigned role is currently inactive. Please contact administrator.");
+                    return ResponseEntity.status(403).body(error);
+                }
+            }
+
             List<String> roleNames = roles.stream()
+                    .filter(Role::isActive)
                     .map(Role::getName)
                     .collect(Collectors.toList());
 

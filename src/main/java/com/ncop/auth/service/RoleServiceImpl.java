@@ -39,7 +39,7 @@ public class RoleServiceImpl implements RoleService {
         role.setName(trimmedName);
         role.setDescription(request.description());
         role.setActive(request.active() != null ? request.active() : true);
-        role.setModuleRights(request.moduleRights() != null ? request.moduleRights() : new ArrayList<>());
+        role.setModuleRights(new ArrayList<>());
         role.setCreatedOn(Instant.now());
         role.setLastUpdatedOn(Instant.now());
 
@@ -68,19 +68,8 @@ public class RoleServiceImpl implements RoleService {
             role.setActive(request.active());
         }
 
-        boolean permissionsChanged = false;
-        if (request.moduleRights() != null) {
-            role.setModuleRights(new ArrayList<>(request.moduleRights()));
-            permissionsChanged = true;
-        }
-
         role.setLastUpdatedOn(Instant.now());
         Role saved = roleRepository.save(role);
-
-        // Synchronize updated role permissions to all existing users with this role
-        if (permissionsChanged || request.active() != null) {
-            syncRolePermissionsToUsers(saved.getRoleId());
-        }
 
         return toResponse(saved);
     }
@@ -105,21 +94,13 @@ public class RoleServiceImpl implements RoleService {
             throw new ResourceNotFoundException("Role not found with id: " + roleId);
         }
 
-        // Remove roleId from any user that has it and re-sync their module rights
+        // Remove roleId from any user that has it
         List<User> usersWithRole = userRepository.findAll().stream()
                 .filter(u -> u.getRoleIds() != null && u.getRoleIds().contains(roleId))
                 .toList();
 
         for (User user : usersWithRole) {
             user.getRoleIds().remove(roleId);
-            List<Role> remainingRoles = roleRepository.findAllById(user.getRoleIds());
-            Set<String> combinedRights = new HashSet<>();
-            for (Role r : remainingRoles) {
-                if (r.isActive() && r.getModuleRights() != null) {
-                    combinedRights.addAll(r.getModuleRights());
-                }
-            }
-            user.setModuleRights(new ArrayList<>(combinedRights));
             userRepository.save(user);
         }
 
@@ -127,24 +108,6 @@ public class RoleServiceImpl implements RoleService {
     }
 
     // ── Private helpers ──────────────────────────────────────────────
-
-    private void syncRolePermissionsToUsers(String roleId) {
-        List<User> usersWithRole = userRepository.findAll().stream()
-                .filter(u -> u.getRoleIds() != null && u.getRoleIds().contains(roleId))
-                .toList();
-
-        for (User user : usersWithRole) {
-            List<Role> userRoles = roleRepository.findAllById(user.getRoleIds());
-            Set<String> combinedRights = new HashSet<>();
-            for (Role r : userRoles) {
-                if (r.isActive() && r.getModuleRights() != null) {
-                    combinedRights.addAll(r.getModuleRights());
-                }
-            }
-            user.setModuleRights(new ArrayList<>(combinedRights));
-            userRepository.save(user);
-        }
-    }
 
     private RoleResponse toResponse(Role role) {
         long userCount = userRepository.findAll().stream()
