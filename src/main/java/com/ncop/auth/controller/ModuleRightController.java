@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/auth/module-rights")
+@RequestMapping("/api/v1/auth/module-rights")
 public class ModuleRightController {
 
     private final ModuleRightService moduleRightService;
