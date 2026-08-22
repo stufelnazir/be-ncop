@@ -95,7 +95,6 @@ public class ProductInitializer {
             List<ProductSpec> catalogue = buildCatalogue();
             AtomicInteger inserted = new AtomicInteger(0);
             AtomicInteger skipped  = new AtomicInteger(0);
-            int counter = (int) products.countDocuments() + 1; // start code after existing count
 
             for (ProductSpec spec : catalogue) {
                 Document existing = products.find(Filters.eq("brandName", spec.brandName)).first();
@@ -104,8 +103,6 @@ public class ProductInitializer {
                     skipped.incrementAndGet();
                     continue;
                 }
-
-                String code = String.format("PROD-%06d", counter++);
 
                 List<Document> ingredientDocs = new ArrayList<>();
                 for (Ingredient ing : spec.ingredients) {
@@ -117,7 +114,6 @@ public class ProductInitializer {
                 }
 
                 Document doc = new Document()
-                        .append("productCode",      code)
                         .append("brandName",        spec.brandName)
                         .append("category",         spec.category)
                         .append("therapeuticClass", spec.therapeuticClass)
@@ -135,9 +131,13 @@ public class ProductInitializer {
                         .append("createdOn",        new Date())
                         .append("lastUpdatedOn",    new Date());
 
+                // Insert first to get MongoDB _id, then set productCode = _id
                 products.insertOne(doc);
                 ObjectId id = doc.getObjectId("_id");
-                System.out.println("INSERT '" + spec.brandName + "' → " + code + " (id=" + id.toHexString() + ")");
+                String productCode = id.toHexString();
+                products.updateOne(Filters.eq("_id", id), new Document("$set", new Document("productCode", productCode)));
+
+                System.out.println("INSERT '" + spec.brandName + "' → productCode=" + productCode);
                 inserted.incrementAndGet();
             }
 

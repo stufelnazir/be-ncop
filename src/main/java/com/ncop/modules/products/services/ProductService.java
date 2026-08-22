@@ -1,6 +1,5 @@
 package com.ncop.modules.products.services;
 
-import com.ncop.auth.exception.DuplicateResourceException;
 import com.ncop.auth.exception.ResourceNotFoundException;
 import com.ncop.common.dto.PageResponse;
 import com.ncop.modules.clients.services.FileStorageService;
@@ -104,42 +103,25 @@ public class ProductService {
     public ProductResponseDto createProduct(ProductRequestDto request) {
         Product product = new Product();
 
-        // 1. Auto-generate product code if not provided
-        String productCode = request.getProductCode();
-        if (!StringUtils.hasText(productCode)) {
-            long count = productRepository.count();
-            productCode = String.format("PROD-%06d", count + 1);
-            while (productRepository.existsByProductCode(productCode)) {
-                count++;
-                productCode = String.format("PROD-%06d", count + 1);
-            }
-        } else {
-            productCode = productCode.trim().toUpperCase();
-            if (productRepository.existsByProductCode(productCode)) {
-                throw new DuplicateResourceException("Product code \"" + productCode + "\" already exists");
-            }
-        }
-        product.setProductCode(productCode);
-
-        // 2. Set basic details
+        // 1. Set basic details
         product.setBrandName(request.getBrandName().trim());
         product.setCategory(request.getCategory() != null ? request.getCategory().trim() : "General");
         product.setTherapeuticClass(request.getTherapeuticClass() != null ? request.getTherapeuticClass().trim() : "");
         product.setDosageForm(request.getDosageForm().trim());
         product.setDosageVariant(request.getDosageVariant() != null ? request.getDosageVariant().trim() : "");
 
-        // 3. Set ingredients
+        // 2. Set ingredients
         List<ProductIngredient> ingredients = mapIngredients(request.getIngredients());
         product.setIngredients(ingredients);
 
-        // 4. Auto-compute composition formula
+        // 3. Auto-compute composition formula
         if (StringUtils.hasText(request.getCustomComposition())) {
             product.setComposition(request.getCustomComposition().trim());
         } else {
             product.setComposition(computeComposition(ingredients, product.getDosageVariant(), product.getDosageForm()));
         }
 
-        // 5. Commercial & packaging details
+        // 4. Commercial & packaging details
         product.setPackaging(request.getPackaging());
         product.setMoq(request.getMoq());
         product.setUnitPrice(request.getUnitPrice());
@@ -151,8 +133,12 @@ public class ProductService {
         product.setCreatedOn(Instant.now());
         product.setLastUpdatedOn(Instant.now());
 
+        // 5. Save to get MongoDB _id, then set productCode = id
         Product saved = productRepository.save(product);
-        log.info("Created product: {} ({})", saved.getBrandName(), saved.getProductCode());
+        saved.setProductCode(saved.getId());
+        saved = productRepository.save(saved);
+
+        log.info("Created product: {} (code={})", saved.getBrandName(), saved.getProductCode());
         return toResponseDto(saved);
     }
 
@@ -160,13 +146,8 @@ public class ProductService {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
 
-        if (StringUtils.hasText(request.getProductCode())) {
-            String newCode = request.getProductCode().trim().toUpperCase();
-            if (!newCode.equalsIgnoreCase(product.getProductCode()) && productRepository.existsByProductCode(newCode)) {
-                throw new DuplicateResourceException("Product code \"" + newCode + "\" already exists");
-            }
-            product.setProductCode(newCode);
-        }
+        // productCode always equals MongoDB document ID
+        product.setProductCode(product.getId());
 
         product.setBrandName(request.getBrandName().trim());
         product.setCategory(request.getCategory() != null ? request.getCategory().trim() : "General");
