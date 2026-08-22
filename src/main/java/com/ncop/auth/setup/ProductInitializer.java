@@ -92,6 +92,8 @@ public class ProductInitializer {
             MongoDatabase db = client.getDatabase(dbName);
             MongoCollection<Document> products = db.getCollection("products");
 
+            products.drop();
+
             List<ProductSpec> catalogue = buildCatalogue();
             AtomicInteger inserted = new AtomicInteger(0);
             AtomicInteger skipped  = new AtomicInteger(0);
