@@ -1,6 +1,7 @@
 package com.ncop.modules.products.entity;
 
 import com.ncop.modules.products.enums.ProductStatus;
+import com.ncop.modules.products.enums.ProductSourcing;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -53,6 +54,9 @@ public class Product {
     private String storageCondition; // e.g. "Store below 25°C in a dry place. Protect from light."
 
     private String description;
+
+    /** Determines whether RFQs for this product are reviewed by QA or QC. */
+    private ProductSourcing sourcing = ProductSourcing.IN_HOUSE;
 
     private ProductStatus status = ProductStatus.ACTIVE;
 

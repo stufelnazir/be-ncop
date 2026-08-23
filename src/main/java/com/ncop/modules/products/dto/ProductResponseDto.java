@@ -2,6 +2,7 @@ package com.ncop.modules.products.dto;
 
 import com.ncop.modules.products.entity.ProductDocument;
 import com.ncop.modules.products.enums.ProductStatus;
+import com.ncop.modules.products.enums.ProductSourcing;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -32,6 +33,7 @@ public class ProductResponseDto {
     private String shelfLife;
     private String storageCondition;
     private String description;
+    private ProductSourcing sourcing;
     private ProductStatus status;
     private List<ProductDocument> documents = new ArrayList<>();
     private Instant createdOn;

@@ -1,6 +1,7 @@
 package com.ncop.modules.products.dto;
 
 import com.ncop.modules.products.enums.ProductStatus;
+import com.ncop.modules.products.enums.ProductSourcing;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -46,6 +47,8 @@ public class ProductRequestDto {
     private String storageCondition;
 
     private String description;
+
+    private ProductSourcing sourcing;
 
     private ProductStatus status;
 }

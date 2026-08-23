@@ -11,6 +11,7 @@ import com.ncop.modules.products.entity.ProductDocument;
 import com.ncop.modules.products.entity.ProductIngredient;
 import com.ncop.modules.products.enums.ProductDocumentType;
 import com.ncop.modules.products.enums.ProductStatus;
+import com.ncop.modules.products.enums.ProductSourcing;
 import com.ncop.modules.products.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -129,6 +130,7 @@ public class ProductService {
         product.setShelfLife(request.getShelfLife());
         product.setStorageCondition(request.getStorageCondition());
         product.setDescription(request.getDescription());
+        product.setSourcing(request.getSourcing() != null ? request.getSourcing() : ProductSourcing.IN_HOUSE);
         product.setStatus(request.getStatus() != null ? request.getStatus() : ProductStatus.ACTIVE);
         product.setCreatedOn(Instant.now());
         product.setLastUpdatedOn(Instant.now());
@@ -173,6 +175,7 @@ public class ProductService {
         product.setShelfLife(request.getShelfLife());
         product.setStorageCondition(request.getStorageCondition());
         product.setDescription(request.getDescription());
+        product.setSourcing(request.getSourcing() != null ? request.getSourcing() : ProductSourcing.IN_HOUSE);
         if (request.getStatus() != null) {
             product.setStatus(request.getStatus());
         }
@@ -349,27 +352,28 @@ public class ProductService {
                 .toList()
                 : new ArrayList<>();
 
-        return new ProductResponseDto(
-                p.getId(),
-                p.getProductCode(),
-                p.getBrandName(),
-                p.getCategory(),
-                p.getTherapeuticClass(),
-                p.getDosageForm(),
-                p.getDosageVariant(),
-                ingDtos,
-                p.getComposition(),
-                p.getPackaging(),
-                p.getMoq(),
-                p.getUnitPrice(),
-                p.getCurrency(),
-                p.getShelfLife(),
-                p.getStorageCondition(),
-                p.getDescription(),
-                p.getStatus(),
-                p.getDocuments() != null ? p.getDocuments() : new ArrayList<>(),
-                p.getCreatedOn(),
-                p.getLastUpdatedOn()
-        );
+        ProductResponseDto response = new ProductResponseDto();
+        response.setId(p.getId());
+        response.setProductCode(p.getProductCode());
+        response.setBrandName(p.getBrandName());
+        response.setCategory(p.getCategory());
+        response.setTherapeuticClass(p.getTherapeuticClass());
+        response.setDosageForm(p.getDosageForm());
+        response.setDosageVariant(p.getDosageVariant());
+        response.setIngredients(ingDtos);
+        response.setComposition(p.getComposition());
+        response.setPackaging(p.getPackaging());
+        response.setMoq(p.getMoq());
+        response.setUnitPrice(p.getUnitPrice());
+        response.setCurrency(p.getCurrency());
+        response.setShelfLife(p.getShelfLife());
+        response.setStorageCondition(p.getStorageCondition());
+        response.setDescription(p.getDescription());
+        response.setSourcing(p.getSourcing() != null ? p.getSourcing() : ProductSourcing.IN_HOUSE);
+        response.setStatus(p.getStatus());
+        response.setDocuments(p.getDocuments() != null ? p.getDocuments() : new ArrayList<>());
+        response.setCreatedOn(p.getCreatedOn());
+        response.setLastUpdatedOn(p.getLastUpdatedOn());
+        return response;
     }
 }
