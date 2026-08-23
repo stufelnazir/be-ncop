@@ -13,7 +13,6 @@ import java.math.BigDecimal;
 public class InquiryLineRequestDto {
     @NotBlank(message = "Product is required") private String productId;
     @NotNull(message = "Source is required") private ProductSourcing sourcing;
-    @NotBlank(message = "Quality assignee is required") private String qualityAssigneeId;
     @NotNull(message = "Quantity required is required") private Long quantityRequired;
     private Long shipperPackRequired;
     private Long tertiaryPackRequired;

@@ -30,5 +30,13 @@ public class CustomerInquiry {
     private LocalDate targetQuoteDate;
     private InquiryStatus status;
     private String notes;
+    private String qaAssigneeId;
+    private String qaAssigneeName;
+    private String qcAssigneeId;
+    private String qcAssigneeName;
+    private String raisedByUserId;
+    private String raisedByUserName;
+    private String salesAssigneeId;
+    private String salesAssigneeName;
     private List<InquiryLine> lines = new ArrayList<>();
 }

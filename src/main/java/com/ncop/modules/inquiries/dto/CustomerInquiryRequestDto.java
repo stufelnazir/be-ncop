@@ -22,5 +22,8 @@ public class CustomerInquiryRequestDto {
     @NotNull(message = "Priority is required") private InquiryPriority priority;
     private LocalDate targetQuoteDate;
     private String notes;
+    private String qaAssigneeId;
+    private String qcAssigneeId;
+    private String salesAssigneeId;
     @Valid @NotEmpty(message = "At least one product is required") private List<InquiryLineRequestDto> lines = new ArrayList<>();
 }

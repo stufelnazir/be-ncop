@@ -17,8 +17,6 @@ public class InquiryLine {
     private String strength;
     private String pharmacopeia;
     private ProductSourcing sourcing;
-    private String qualityAssigneeId;
-    private String qualityAssigneeName;
     private Long quantityRequired;
     private Long shipperPackRequired;
     private Long tertiaryPackRequired;

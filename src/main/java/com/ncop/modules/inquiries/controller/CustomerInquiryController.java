@@ -30,6 +30,14 @@ public class CustomerInquiryController {
         return ResponseEntity.ok(PageResponse.of(result.getContent(), page, size, result.getTotalElements()));
     }
 
+    @GetMapping("/my")
+    public ResponseEntity<PageResponse<CustomerInquiry>> listMine(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Page<CustomerInquiry> result = inquiryService.listAssignedToCurrentUser(page, size);
+        return ResponseEntity.ok(PageResponse.of(result.getContent(), page, size, result.getTotalElements()));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<CustomerInquiry> get(@PathVariable String id) {
         return ResponseEntity.ok(inquiryService.get(id));

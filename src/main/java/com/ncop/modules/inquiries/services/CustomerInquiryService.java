@@ -23,6 +23,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDate;
 import java.time.Year;
@@ -58,11 +59,63 @@ public class CustomerInquiryService {
         inquiry.setPriority(request.getPriority());
         inquiry.setTargetQuoteDate(request.getTargetQuoteDate());
         inquiry.setNotes(request.getNotes());
+        User currentUser = currentUserOrNull();
+        if (currentUser != null) {
+            inquiry.setRaisedByUserId(currentUser.getId());
+            inquiry.setRaisedByUserName(fullName(currentUser));
+        }
+
+        User salesAssignee = null;
+        if (request.getSalesAssigneeId() != null && !request.getSalesAssigneeId().isBlank()) {
+            salesAssignee = userRepository.findById(request.getSalesAssigneeId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Sales assignee not found"));
+            if (salesAssignee.getUserStatus() != UserStatus.ACTIVE || !hasRole(salesAssignee, "SALES")) {
+                throw new IllegalArgumentException("Selected sales assignee must be an active SALES user");
+            }
+        } else if (currentUser != null && hasRole(currentUser, "SALES")) {
+            salesAssignee = currentUser;
+        }
+        if (salesAssignee != null) {
+            inquiry.setSalesAssigneeId(salesAssignee.getId());
+            inquiry.setSalesAssigneeName(fullName(salesAssignee));
+        }
+
+        
+        boolean hasQa = request.getLines().stream().anyMatch(l -> l.getSourcing() == ProductSourcing.IN_HOUSE);
+        boolean hasQc = request.getLines().stream().anyMatch(l -> l.getSourcing() == ProductSourcing.OUTSOURCED);
+
+        if (hasQa && (request.getQaAssigneeId() == null || request.getQaAssigneeId().isBlank())) {
+            throw new IllegalArgumentException("QA Reviewer is required for in-house products");
+        }
+        if (hasQc && (request.getQcAssigneeId() == null || request.getQcAssigneeId().isBlank())) {
+            throw new IllegalArgumentException("QC Reviewer is required for outsourced products");
+        }
+
+        if (hasQa) {
+            User qa = userRepository.findById(request.getQaAssigneeId())
+                    .orElseThrow(() -> new ResourceNotFoundException("QA Assignee not found"));
+            if (qa.getUserStatus() != UserStatus.ACTIVE || !hasRole(qa, "QA")) {
+                throw new IllegalArgumentException("Selected QA Assignee is invalid");
+            }
+            inquiry.setQaAssigneeId(qa.getId());
+            inquiry.setQaAssigneeName(fullName(qa));
+        }
+
+        if (hasQc) {
+            User qc = userRepository.findById(request.getQcAssigneeId())
+                    .orElseThrow(() -> new ResourceNotFoundException("QC Assignee not found"));
+            if (qc.getUserStatus() != UserStatus.ACTIVE || !hasRole(qc, "QC")) {
+                throw new IllegalArgumentException("Selected QC Assignee is invalid");
+            }
+            inquiry.setQcAssigneeId(qc.getId());
+            inquiry.setQcAssigneeName(fullName(qc));
+        }
 
         List<InquiryLine> lines = request.getLines().stream().map(this::toLine).toList();
+
         inquiry.setLines(lines);
-        boolean hasQa = lines.stream().anyMatch(l -> l.getSourcing() == ProductSourcing.IN_HOUSE);
-        boolean hasQc = lines.stream().anyMatch(l -> l.getSourcing() == ProductSourcing.OUTSOURCED);
+        
+        
         inquiry.setStatus(hasQa && hasQc ? InquiryStatus.SUBMITTED
                 : hasQa ? InquiryStatus.SUBMITTED_TO_QA : InquiryStatus.SUBMITTED_TO_QC);
         return inquiryRepository.save(inquiry);
@@ -78,16 +131,23 @@ public class CustomerInquiryService {
                 .orElseThrow(() -> new ResourceNotFoundException("Inquiry not found"));
     }
 
+    public Page<CustomerInquiry> listAssignedToCurrentUser(int page, int size) {
+        String email = SecurityContextHolder.getContext().getAuthentication() == null
+                ? null : SecurityContextHolder.getContext().getAuthentication().getName();
+        if (email == null || email.isBlank() || "anonymousUser".equals(email)) {
+            throw new IllegalArgumentException("Authentication is required to view assigned inquiries");
+        }
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Current user not found"));
+        return inquiryRepository.findByQaAssigneeIdOrQcAssigneeIdOrRaisedByUserIdOrSalesAssigneeId(
+                user.getId(), user.getId(), user.getId(), user.getId(), PageRequest.of(page, size));
+    }
+
     private InquiryLine toLine(InquiryLineRequestDto request) {
         Product product = productRepository.findById(request.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + request.getProductId()));
         ProductSourcing sourcing = request.getSourcing();
-        User assignee = userRepository.findById(request.getQualityAssigneeId())
-                .orElseThrow(() -> new ResourceNotFoundException("Quality assignee not found"));
-        String requiredRole = sourcing == ProductSourcing.OUTSOURCED ? "QC" : "QA";
-        if (assignee.getUserStatus() != UserStatus.ACTIVE || !hasRole(assignee, requiredRole)) {
-            throw new IllegalArgumentException("Selected assignee must be an active " + requiredRole + " user for this product");
-        }
+        
 
         InquiryLine line = new InquiryLine();
         line.setProductId(product.getId());
@@ -102,8 +162,8 @@ public class CustomerInquiryService {
         line.setPharmacopeia(product.getIngredients() == null ? "" : product.getIngredients().stream()
                 .map(i -> i.getPharmacopeia()).filter(v -> v != null && !v.isBlank()).distinct().reduce((a, b) -> a + "/" + b).orElse(""));
         line.setSourcing(sourcing);
-        line.setQualityAssigneeId(assignee.getId());
-        line.setQualityAssigneeName(fullName(assignee));
+        
+        
         line.setQuantityRequired(request.getQuantityRequired());
         line.setShipperPackRequired(request.getShipperPackRequired());
         line.setTertiaryPackRequired(request.getTertiaryPackRequired());
@@ -120,6 +180,13 @@ public class CustomerInquiryService {
         if (user.getRoleIds() == null || user.getRoleIds().isEmpty()) return false;
         return roleRepository.findAllById(user.getRoleIds()).stream()
                 .anyMatch(role -> role.isActive() && roleName.equalsIgnoreCase(role.getName()));
+    }
+
+    private User currentUserOrNull() {
+        String email = SecurityContextHolder.getContext().getAuthentication() == null
+                ? null : SecurityContextHolder.getContext().getAuthentication().getName();
+        return email == null || email.isBlank() || "anonymousUser".equals(email)
+                ? null : userRepository.findByEmail(email).orElse(null);
     }
 
     private String fullName(User user) {
