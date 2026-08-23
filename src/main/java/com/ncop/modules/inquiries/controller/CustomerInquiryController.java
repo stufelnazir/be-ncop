@@ -22,6 +22,13 @@ public class CustomerInquiryController {
         return ResponseEntity.status(HttpStatus.CREATED).body(inquiryService.create(request));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<CustomerInquiry> update(
+            @PathVariable String id,
+            @Valid @RequestBody CustomerInquiryRequestDto request) {
+        return ResponseEntity.ok(inquiryService.update(id, request));
+    }
+
     @GetMapping
     public ResponseEntity<PageResponse<CustomerInquiry>> list(
             @RequestParam(defaultValue = "0") int page,

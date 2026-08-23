@@ -126,6 +126,85 @@ public class CustomerInquiryService {
         return inquiryRepository.findAll(pageable);
     }
 
+    public CustomerInquiry update(String id, CustomerInquiryRequestDto request) {
+        CustomerInquiry inquiry = get(id);
+        User currentUser = currentUserOrNull();
+        if (currentUser == null) {
+            throw new IllegalArgumentException("Authentication is required to update an inquiry");
+        }
+        boolean isAdmin = hasRole(currentUser, "ADMIN") || hasRole(currentUser, "SUPER_ADMIN");
+        boolean isOwner = currentUser.getId().equals(inquiry.getRaisedByUserId())
+                || currentUser.getId().equals(inquiry.getSalesAssigneeId());
+        if (!isAdmin && !isOwner) {
+            throw new IllegalArgumentException("Only the inquiry owner or an administrator can edit this inquiry");
+        }
+
+        Client client = clientRepository.findById(request.getCustomerId())
+                .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
+        PointOfContact contact = client.getPointOfContacts().stream()
+                .filter(p -> request.getContactPersonId().equals(p.getId())
+                        || request.getContactPersonId().equalsIgnoreCase(p.getEmail()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Contact person does not belong to the selected customer"));
+        inquiry.setCustomerId(client.getId());
+        inquiry.setCustomerName(client.getCompanyName());
+        inquiry.setContactPersonId(contact.getId() != null ? contact.getId() : request.getContactPersonId());
+        inquiry.setContactPersonName(contact.getPersonName());
+        inquiry.setContactEmail(contact.getEmail());
+        inquiry.setInquirySource(request.getInquirySource());
+        inquiry.setPriority(request.getPriority());
+        inquiry.setTargetQuoteDate(request.getTargetQuoteDate());
+        inquiry.setNotes(request.getNotes());
+
+        if (request.getSalesAssigneeId() != null && !request.getSalesAssigneeId().isBlank()) {
+            if (!isAdmin) {
+                throw new IllegalArgumentException("Only an administrator can change the sales owner");
+            }
+            User salesAssignee = userRepository.findById(request.getSalesAssigneeId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Sales assignee not found"));
+            if (salesAssignee.getUserStatus() != UserStatus.ACTIVE || !hasRole(salesAssignee, "SALES")) {
+                throw new IllegalArgumentException("Selected sales assignee must be an active SALES user");
+            }
+            inquiry.setSalesAssigneeId(salesAssignee.getId());
+            inquiry.setSalesAssigneeName(fullName(salesAssignee));
+        }
+
+        boolean hasQa = request.getLines().stream().anyMatch(l -> l.getSourcing() == ProductSourcing.IN_HOUSE);
+        boolean hasQc = request.getLines().stream().anyMatch(l -> l.getSourcing() == ProductSourcing.OUTSOURCED);
+        if (hasQa && (request.getQaAssigneeId() == null || request.getQaAssigneeId().isBlank())) {
+            throw new IllegalArgumentException("QA Reviewer is required for in-house products");
+        }
+        if (hasQc && (request.getQcAssigneeId() == null || request.getQcAssigneeId().isBlank())) {
+            throw new IllegalArgumentException("QC Reviewer is required for outsourced products");
+        }
+        inquiry.setQaAssigneeId(null);
+        inquiry.setQaAssigneeName(null);
+        inquiry.setQcAssigneeId(null);
+        inquiry.setQcAssigneeName(null);
+        if (hasQa) {
+            User qa = userRepository.findById(request.getQaAssigneeId())
+                    .orElseThrow(() -> new ResourceNotFoundException("QA Assignee not found"));
+            if (qa.getUserStatus() != UserStatus.ACTIVE || !hasRole(qa, "QA")) {
+                throw new IllegalArgumentException("Selected QA Assignee is invalid");
+            }
+            inquiry.setQaAssigneeId(qa.getId());
+            inquiry.setQaAssigneeName(fullName(qa));
+        }
+        if (hasQc) {
+            User qc = userRepository.findById(request.getQcAssigneeId())
+                    .orElseThrow(() -> new ResourceNotFoundException("QC Assignee not found"));
+            if (qc.getUserStatus() != UserStatus.ACTIVE || !hasRole(qc, "QC")) {
+                throw new IllegalArgumentException("Selected QC Assignee is invalid");
+            }
+            inquiry.setQcAssigneeId(qc.getId());
+            inquiry.setQcAssigneeName(fullName(qc));
+        }
+        inquiry.setLines(request.getLines().stream().map(this::toLine).toList());
+        inquiry.setStatus(hasQa && hasQc ? InquiryStatus.SUBMITTED
+                : hasQa ? InquiryStatus.SUBMITTED_TO_QA : InquiryStatus.SUBMITTED_TO_QC);
+        return inquiryRepository.save(inquiry);
+    }
+
     public CustomerInquiry get(String id) {
         return inquiryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Inquiry not found"));
