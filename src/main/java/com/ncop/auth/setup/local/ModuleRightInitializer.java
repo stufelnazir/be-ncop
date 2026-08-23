@@ -38,6 +38,7 @@ public class ModuleRightInitializer {
         seeds.add(new ModuleSeed("QC", "Quality Control", "QC module access"));
         seeds.add(new ModuleSeed("PRODUCT_MASTER", "Product Master", "Manage product master data"));
         seeds.add(new ModuleSeed("CLIENT_MASTER", "Client Master", "Manage client master data"));
+        seeds.add(new ModuleSeed("PROFILE", "Profile", "View and manage own profile"));
 
         try {
             ModuleRight[] existingModules = restTemplate.getForObject(baseUrl + "/auth/module-rights", ModuleRight[].class);
