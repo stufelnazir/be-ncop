@@ -14,6 +14,7 @@ import com.ncop.modules.inquiries.dto.InquiryLineRequestDto;
 import com.ncop.modules.inquiries.entity.CustomerInquiry;
 import com.ncop.modules.inquiries.entity.InquiryLine;
 import com.ncop.modules.inquiries.enums.InquiryStatus;
+import com.ncop.modules.inquiries.enums.OrderQuantityUnit;
 import com.ncop.modules.inquiries.repository.CustomerInquiryRepository;
 import com.ncop.modules.products.entity.Product;
 import com.ncop.modules.products.enums.ProductSourcing;
@@ -167,6 +168,9 @@ public class CustomerInquiryService {
             }
             inquiry.setSalesAssigneeId(salesAssignee.getId());
             inquiry.setSalesAssigneeName(fullName(salesAssignee));
+        } else if (isAdmin) {
+            inquiry.setSalesAssigneeId(null);
+            inquiry.setSalesAssigneeName(null);
         }
 
         boolean hasQa = request.getLines().stream().anyMatch(l -> l.getSourcing() == ProductSourcing.IN_HOUSE);
@@ -244,7 +248,8 @@ public class CustomerInquiryService {
         
         
         line.setQuantityRequired(request.getQuantityRequired());
-        line.setShipperPackRequired(request.getShipperPackRequired());
+        line.setOrderQuantityUnit(request.getOrderQuantityUnit());
+        line.setCalculatedTabletQuantity(calculateTabletQuantity(request));
         line.setTertiaryPackRequired(request.getTertiaryPackRequired());
         line.setSecondaryPackRequired(request.getSecondaryPackRequired());
         line.setMonoBoxPackRequired(request.getMonoBoxPackRequired());
@@ -253,6 +258,33 @@ public class CustomerInquiryService {
         line.setTargetPrice(request.getTargetPrice());
         line.setPackagingNotes(request.getPackagingNotes());
         return line;
+    }
+
+    private long calculateTabletQuantity(InquiryLineRequestDto request) {
+        long quantity = request.getQuantityRequired() == null ? 0 : request.getQuantityRequired();
+        if (quantity < 1) throw new IllegalArgumentException("Quantity required must be greater than zero");
+        OrderQuantityUnit unit = request.getOrderQuantityUnit();
+        // Existing RFQs created before pack-level selection remain valid and use their requested quantity.
+        if (unit == null || unit == OrderQuantityUnit.TABLET) return quantity;
+        if (unit == OrderQuantityUnit.JAR) return multiply(quantity, request.getTabletPackRequired(), "tablets per jar");
+
+        long result = quantity;
+        if (unit == OrderQuantityUnit.TERTIARY)
+            result = multiply(result, request.getTertiaryPackRequired(), "tertiary pack");
+        if (unit == OrderQuantityUnit.TERTIARY || unit == OrderQuantityUnit.SECONDARY)
+            result = multiply(result, request.getSecondaryPackRequired(), "secondary pack");
+        if (unit != OrderQuantityUnit.STRIP)
+            result = multiply(result, request.getMonoBoxPackRequired(), "mono box pack");
+        return multiply(result, request.getStripPackRequired(), "strip pack");
+    }
+
+    private long multiply(long value, Long factor, String field) {
+        if (factor == null || factor < 1) throw new IllegalArgumentException(field + " is required for the selected order level");
+        try {
+            return Math.multiplyExact(value, factor);
+        } catch (ArithmeticException exception) {
+            throw new IllegalArgumentException("Calculated tablet quantity is too large");
+        }
     }
 
     private boolean hasRole(User user, String roleName) {

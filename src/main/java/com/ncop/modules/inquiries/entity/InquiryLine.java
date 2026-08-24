@@ -1,6 +1,7 @@
 package com.ncop.modules.inquiries.entity;
 
 import com.ncop.modules.products.enums.ProductSourcing;
+import com.ncop.modules.inquiries.enums.OrderQuantityUnit;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -18,7 +19,8 @@ public class InquiryLine {
     private String pharmacopeia;
     private ProductSourcing sourcing;
     private Long quantityRequired;
-    private Long shipperPackRequired;
+    private OrderQuantityUnit orderQuantityUnit;
+    private Long calculatedTabletQuantity;
     private Long tertiaryPackRequired;
     private Long secondaryPackRequired;
     private Long monoBoxPackRequired;
