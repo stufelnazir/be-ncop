@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 
 public interface CustomerInquiryRepository extends MongoRepository<CustomerInquiry, String> {
     boolean existsByRfqNo(String rfqNo);
+    boolean existsByCustomerId(String customerId);
     Page<CustomerInquiry> findByQaAssigneeIdOrQcAssigneeIdOrRaisedByUserIdOrSalesAssigneeId(
             String qaAssigneeId, String qcAssigneeId, String raisedByUserId, String salesAssigneeId, Pageable pageable);
 }

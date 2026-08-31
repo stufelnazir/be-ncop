@@ -30,6 +30,7 @@ import com.ncop.modules.clients.enums.DocumentType;
 import com.ncop.modules.clients.repository.ClientRepository;
 import com.ncop.modules.clients.services.ClientService;
 import com.ncop.modules.clients.services.FileStorageService;
+import com.ncop.modules.inquiries.repository.CustomerInquiryRepository;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +44,7 @@ public class ClientController {
     private final ClientRepository clientRepository;
     private final FileStorageService fileStorageService;
     private final EmailService emailService;
+    private final CustomerInquiryRepository customerInquiryRepository;
 
     @PostMapping
     public ResponseEntity<Client> createClient(@Valid @RequestBody ClientRequestDto requestDto) {
@@ -99,6 +101,21 @@ public class ClientController {
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteClient(@PathVariable String id) {
+        return clientRepository.findById(id).map(client -> {
+            if (customerInquiryRepository.existsByCustomerId(id)) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).<Void>build();
+            }
+
+            if (client.getDocuments() != null) {
+                client.getDocuments().forEach(fileStorageService::deleteFile);
+            }
+            clientRepository.delete(client);
+            return ResponseEntity.noContent().<Void>build();
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     // Client facing endpoint to submit bank details
