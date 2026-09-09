@@ -19,6 +19,7 @@ import com.ncop.modules.inquiries.repository.CustomerInquiryRepository;
 import com.ncop.modules.products.entity.Product;
 import com.ncop.modules.products.enums.ProductSourcing;
 import com.ncop.modules.products.repository.ProductRepository;
+import com.ncop.modules.qa.services.QaRfqService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -38,6 +39,7 @@ public class CustomerInquiryService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final QaRfqService qaRfqService;
 
     public CustomerInquiry create(CustomerInquiryRequestDto request) {
         Client client = clientRepository.findById(request.getCustomerId())
@@ -119,7 +121,9 @@ public class CustomerInquiryService {
         
         inquiry.setStatus(hasQa && hasQc ? InquiryStatus.SUBMITTED
                 : hasQa ? InquiryStatus.SUBMITTED_TO_QA : InquiryStatus.SUBMITTED_TO_QC);
-        return inquiryRepository.save(inquiry);
+        CustomerInquiry saved = inquiryRepository.save(inquiry);
+        qaRfqService.syncAssignedInquiry(saved, client);
+        return saved;
     }
 
     public Page<CustomerInquiry> list(int page, int size) {
@@ -206,7 +210,9 @@ public class CustomerInquiryService {
         inquiry.setLines(request.getLines().stream().map(this::toLine).toList());
         inquiry.setStatus(hasQa && hasQc ? InquiryStatus.SUBMITTED
                 : hasQa ? InquiryStatus.SUBMITTED_TO_QA : InquiryStatus.SUBMITTED_TO_QC);
-        return inquiryRepository.save(inquiry);
+        CustomerInquiry saved = inquiryRepository.save(inquiry);
+        qaRfqService.syncAssignedInquiry(saved, client);
+        return saved;
     }
 
     public CustomerInquiry get(String id) {
