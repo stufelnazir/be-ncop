@@ -48,7 +48,14 @@ public class MfrMatchingService {
             if (rfq.getId() != null && rfq.getId().equals(mfr.getRfqId())) {
                 continue;
             }
-            MfrMatchResultDto match = scoreMfrMatch(mfr, searchProductName, searchDosage, searchStandard, rfqIngredients);
+            MfrMatchResultDto match = scoreMfrMatch(
+                    mfr,
+                    rfq,
+                    searchProductName,
+                    searchDosage,
+                    searchStandard,
+                    rfqIngredients
+            );
             if (match.getTotalScore() > 15.0) {
                 results.add(match);
             }
@@ -120,6 +127,7 @@ public class MfrMatchingService {
         dto.setDosageForm(p.getDosageForm());
         dto.setDosageVariant(p.getDosageVariant());
         dto.setComposition(p.getComposition());
+        dto.setStatus("ACTIVE");
         dto.setTotalScore(total);
         dto.setProductNameScore(roundTo(pNameScore, 1));
         dto.setCompositionScore(roundTo(compScore, 1));
@@ -127,12 +135,20 @@ public class MfrMatchingService {
         dto.setDosageFormScore(roundTo(dosageScore, 1));
         dto.setStandardScore(roundTo(standardScore, 1));
         dto.setStatusScore(roundTo(statusScore, 1));
+        dto.setBatchSizeScore(0.0);
         dto.setMatchedIngredients(matched);
 
         return dto;
     }
 
-    private MfrMatchResultDto scoreMfrMatch(QaMfr mfr, String rfqName, String rfqDosage, String rfqStandard, List<QaCompositionLine> rfqIngredients) {
+    private MfrMatchResultDto scoreMfrMatch(
+            QaMfr mfr,
+            QaRfq rfq,
+            String rfqName,
+            String rfqDosage,
+            String rfqStandard,
+            List<QaCompositionLine> rfqIngredients
+    ) {
         double pNameScore = computeStringSimilarity(rfqName, mfr.getProductName()) * 35.0;
 
         List<String> matched = new ArrayList<>();
@@ -173,8 +189,9 @@ public class MfrMatchingService {
         double dosageScore = computeDosageScore(rfqDosage, mfr.getDosageForm());
         double standardScore = (rfqStandard != null && !rfqStandard.isBlank() && mfr.getStandard() != null && mfr.getStandard().equalsIgnoreCase(rfqStandard)) ? 5.0 : 2.5;
         double statusScore = mfr.getStatus() == QaMfrStatus.APPROVED ? 5.0 : 3.0;
+        double batchSizeScore = computeBatchSizeScore(rfq.getTargetBatchSize(), mfr.getBatchSize());
 
-        double total = roundTo(pNameScore + compScore + strScore + dosageScore + standardScore + statusScore, 1);
+        double total = roundTo(pNameScore + compScore + strScore + dosageScore + standardScore + statusScore + batchSizeScore, 1);
 
         MfrMatchResultDto dto = new MfrMatchResultDto();
         dto.setTargetType("MFR");
@@ -184,6 +201,9 @@ public class MfrMatchingService {
         dto.setDosageForm(mfr.getDosageForm());
         dto.setDosageVariant(mfr.getDosageVariant());
         dto.setComposition(mfr.getProductName() + " (" + (mfr.getStandard() != null ? mfr.getStandard() : "Standard") + ")");
+        dto.setBatchSize(mfr.getBatchSize());
+        dto.setBatchUnit(mfr.getBatchUnit());
+        dto.setStatus(mfr.getStatus() == null ? null : mfr.getStatus().name());
         dto.setTotalScore(total);
         dto.setProductNameScore(roundTo(pNameScore, 1));
         dto.setCompositionScore(roundTo(compScore, 1));
@@ -191,6 +211,7 @@ public class MfrMatchingService {
         dto.setDosageFormScore(roundTo(dosageScore, 1));
         dto.setStandardScore(roundTo(standardScore, 1));
         dto.setStatusScore(roundTo(statusScore, 1));
+        dto.setBatchSizeScore(roundTo(batchSizeScore, 1));
         dto.setMatchedIngredients(matched);
 
         return dto;
@@ -208,6 +229,14 @@ public class MfrMatchingService {
             return 7.5;
         }
         return 0.0;
+    }
+
+    private double computeBatchSizeScore(Double requested, Double candidate) {
+        if (requested == null || requested <= 0 || candidate == null || candidate <= 0) return 2.5;
+        double difference = Math.abs(requested - candidate) / Math.max(requested, candidate);
+        if (difference <= 0.05) return 5.0;
+        if (difference <= 0.25) return 3.0;
+        return 1.0;
     }
 
     private double computeStringSimilarity(String s1, String s2) {

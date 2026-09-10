@@ -27,6 +27,7 @@ public class QaQuery {
     private String rfqId;
     private String rfqNo;
     private String mfrId;
+    private String rfqProductId;
 
     private String raisedBy;
     private String raisedTo;

@@ -2,6 +2,7 @@ package com.ncop.modules.qa.dto;
 
 import com.ncop.modules.qa.entity.QaChangeParts;
 import com.ncop.modules.qa.entity.QaCompositionLine;
+import com.ncop.modules.qa.entity.QaRfqProduct;
 import com.ncop.modules.qa.enums.QaPriority;
 import com.ncop.modules.qa.enums.QaRfqStatus;
 import lombok.Getter;
@@ -37,6 +38,7 @@ public class QaRfqRequestDto {
     private String createdDate;
 
     private List<QaCompositionLine> compositionLines = new ArrayList<>();
+    private List<QaRfqProduct> products = new ArrayList<>();
     private QaChangeParts changeParts;
 
     private String packagingSpec;

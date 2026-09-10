@@ -30,6 +30,7 @@ public class QaMfr {
 
     private String rfqId; // Reference to QaRfq
     private String rfqNo;
+    private String rfqProductId;
 
     private String productName;
     private String dosageForm;
@@ -53,6 +54,9 @@ public class QaMfr {
     private String remarks;
     private String createdBy;
     private String approvedBy;
+    private String nextDepartment;
+    private String nextApprover;
+    private Instant submittedOn;
 
     @CreatedDate
     private Instant createdOn = Instant.now();

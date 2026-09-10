@@ -9,6 +9,7 @@ import com.ncop.modules.qa.entity.QaCompositionLine;
 import com.ncop.modules.qa.entity.QaMfr;
 import com.ncop.modules.qa.entity.QaMfrItem;
 import com.ncop.modules.qa.entity.QaRfq;
+import com.ncop.modules.qa.entity.QaRfqProduct;
 import com.ncop.modules.qa.enums.QaMfrStatus;
 import com.ncop.modules.qa.enums.QaRfqStatus;
 import com.ncop.modules.qa.enums.QaStage;
@@ -59,7 +60,7 @@ public class QaMfrService {
         return saved;
     }
 
-    public QaMfr createMfrFromRfq(String rfqId, Double initialBatchSize, String batchUnit) {
+    public QaMfr createMfrFromRfq(String rfqId, String rfqProductId, Double initialBatchSize, String batchUnit) {
         QaRfq rfq = rfqRepository.findById(rfqId)
                 .orElseThrow(() -> new RuntimeException("RFQ not found: " + rfqId));
 
@@ -68,13 +69,18 @@ public class QaMfrService {
 
         mfr.setRfqId(rfq.getId());
         mfr.setRfqNo(rfq.getRfqNo());
-        mfr.setProductName(rfq.getProductName() != null ? rfq.getProductName() : rfq.getBrandName());
-        mfr.setDosageForm(rfq.getDosageForm());
+        QaRfqProduct product = rfq.getProducts() == null ? null : rfq.getProducts().stream()
+                .filter(candidate -> candidate.getId().equals(rfqProductId)).findFirst().orElse(null);
+        if (rfqProductId != null && product == null) throw new RuntimeException("RFQ product not found: " + rfqProductId);
+        mfr.setRfqProductId(rfqProductId);
+        mfr.setProductName(product != null ? product.getProductName() : (rfq.getProductName() != null ? rfq.getProductName() : rfq.getBrandName()));
+        mfr.setDosageForm(product != null ? product.getDosageForm() : rfq.getDosageForm());
         mfr.setDosageVariant(rfq.getDosageVariant());
-        mfr.setStandard(rfq.getStandard() != null ? rfq.getStandard() : rfq.getPharmacopeia());
+        mfr.setStandard(product != null ? product.getStandard() : (rfq.getStandard() != null ? rfq.getStandard() : rfq.getPharmacopeia()));
 
         double bSize = (initialBatchSize != null && initialBatchSize > 0) ? initialBatchSize :
-                (rfq.getTargetBatchSize() != null && rfq.getTargetBatchSize() > 0 ? rfq.getTargetBatchSize() : 100000.0);
+                (product != null && product.getTotalTablets() != null && product.getTotalTablets() > 0 ? product.getTotalTablets()
+                : (rfq.getTargetBatchSize() != null && rfq.getTargetBatchSize() > 0 ? rfq.getTargetBatchSize() : 100000.0));
         mfr.setBatchSize(bSize);
         mfr.setBatchUnit(batchUnit != null ? batchUnit : (rfq.getBatchUnit() != null ? rfq.getBatchUnit() : "Tablets"));
         mfr.setStatus(QaMfrStatus.DRAFT);
@@ -86,9 +92,10 @@ public class QaMfrService {
 
         // Convert RFQ active ingredients to MFR Items in ACTIVE stage
         List<QaMfrItem> items = new ArrayList<>();
-        if (rfq.getCompositionLines() != null) {
+        List<QaCompositionLine> sourceLines = product != null ? product.getCompositionLines() : rfq.getCompositionLines();
+        if (sourceLines != null) {
             int codeIndex = 1;
-            for (QaCompositionLine cLine : rfq.getCompositionLines()) {
+            for (QaCompositionLine cLine : sourceLines) {
                 QaMfrItem item = new QaMfrItem();
                 item.setStage(QaStage.ACTIVE);
                 item.setItemCode(String.format("RM-ACT-%03d", codeIndex++));
@@ -120,6 +127,10 @@ public class QaMfrService {
         rfqRepository.save(rfq);
 
         return saved;
+    }
+
+    public QaMfr createMfrFromRfq(String rfqId, Double initialBatchSize, String batchUnit) {
+        return createMfrFromRfq(rfqId, null, initialBatchSize, batchUnit);
     }
 
     public QaMfr cloneFromProductOrMfr(String targetType, String targetId, String rfqId) {
@@ -256,6 +267,11 @@ public class QaMfrService {
         return mfrRepository.findById(id);
     }
 
+    public QaMfr save(QaMfr mfr) {
+        mfr.setLastUpdatedOn(Instant.now());
+        return mfrRepository.save(mfr);
+    }
+
     public QaMfr updateMfr(String id, QaMfrRequestDto dto) {
         QaMfr mfr = mfrRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("MFR not found with id: " + id));
@@ -271,8 +287,12 @@ public class QaMfrService {
         QaMfr mfr = mfrRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("MFR not found: " + id));
 
+        recalculateBatchQuantities(mfr);
+        validateForSubmission(mfr);
         mfr.setStatus(QaMfrStatus.SUBMITTED);
         mfr.setApprovedBy(user);
+        mfr.setNextDepartment(mfr.getNextDepartment() == null || mfr.getNextDepartment().isBlank() ? "Production" : mfr.getNextDepartment());
+        mfr.setSubmittedOn(Instant.now());
         mfr.setLastUpdatedOn(Instant.now());
 
         QaMfr saved = mfrRepository.save(mfr);
@@ -316,11 +336,38 @@ public class QaMfrService {
             Double batchQty = calculatorService.calculateQtyPerBatch(mfr.getBatchSize(), overagedPerUnit, item.getClaimUnit(), bUnit);
             item.setQtyPerBatch(batchQty);
         }
+        double api = 0.0, excipients = 0.0, coating = 0.0;
+        for (QaMfrItem item : mfr.getItems()) {
+            double quantity = item.getOveragedQtyPerUnit() == null ? 0.0 : item.getOveragedQtyPerUnit();
+            if (item.getStage() == QaStage.ACTIVE) api += quantity;
+            else if (item.getStage() == QaStage.GRANULATION || item.getStage() == QaStage.BINDER || item.getStage() == QaStage.LUBRICATION) excipients += quantity;
+            else if (item.getStage() == QaStage.COATING) coating += quantity;
+        }
+        mfr.setUncoatedAvgWeightMg(round(api + excipients));
+        mfr.setCoatedAvgWeightMg(round(api + excipients + coating));
+    }
+
+    private double round(double value) { return Math.round(value * 100.0) / 100.0; }
+
+    private void validateForSubmission(QaMfr mfr) {
+        if (mfr.getBatchSize() == null || mfr.getBatchSize() <= 0) throw new IllegalArgumentException("Batch size is required");
+        if (mfr.getProposedShelfLifeYears() == null || mfr.getProposedShelfLifeYears() <= 0) throw new IllegalArgumentException("Proposed shelf life is required");
+        if (mfr.getItems() == null || mfr.getItems().isEmpty()) throw new IllegalArgumentException("At least one formulation material is required");
+        if (mfr.getItems().stream().anyMatch(item -> item.getMaterialName() == null || item.getMaterialName().isBlank()
+                || item.getLabelClaim() == null || item.getLabelClaim() <= 0 || item.getClaimUnit() == null || item.getClaimUnit().isBlank())) {
+            throw new IllegalArgumentException("Every formulation material needs a name, quantity, and unit");
+        }
+        if (Boolean.TRUE.equals(mfr.getChangeParts().getChangePartAvailable())
+                && ((mfr.getChangeParts().getCompressionCpFileUrl() == null || mfr.getChangeParts().getCompressionCpFileUrl().isBlank())
+                || (mfr.getChangeParts().getStripCpFileUrl() == null || mfr.getChangeParts().getStripCpFileUrl().isBlank()))) {
+            throw new IllegalArgumentException("Compression and Strip change-part layouts are required");
+        }
     }
 
     private void mapDtoToEntity(QaMfrRequestDto dto, QaMfr mfr) {
         if (dto.getRfqId() != null) mfr.setRfqId(dto.getRfqId());
         if (dto.getRfqNo() != null) mfr.setRfqNo(dto.getRfqNo());
+        if (dto.getRfqProductId() != null) mfr.setRfqProductId(dto.getRfqProductId());
         if (dto.getProductName() != null) mfr.setProductName(dto.getProductName());
         if (dto.getDosageForm() != null) mfr.setDosageForm(dto.getDosageForm());
         if (dto.getDosageVariant() != null) mfr.setDosageVariant(dto.getDosageVariant());
@@ -344,12 +391,6 @@ public class QaMfrService {
         if (dto.getCoatingPercentage() != null) {
             mfr.setCoatingPercentage(dto.getCoatingPercentage());
         }
-        if (dto.getUncoatedAvgWeightMg() != null) {
-            mfr.setUncoatedAvgWeightMg(dto.getUncoatedAvgWeightMg());
-        }
-        if (dto.getCoatedAvgWeightMg() != null) {
-            mfr.setCoatedAvgWeightMg(dto.getCoatedAvgWeightMg());
-        }
         if (dto.getStatus() != null) {
             mfr.setStatus(dto.getStatus());
         }
@@ -362,5 +403,7 @@ public class QaMfrService {
         if (dto.getRemarks() != null) mfr.setRemarks(dto.getRemarks());
         if (dto.getCreatedBy() != null) mfr.setCreatedBy(dto.getCreatedBy());
         if (dto.getApprovedBy() != null) mfr.setApprovedBy(dto.getApprovedBy());
+        if (dto.getNextDepartment() != null) mfr.setNextDepartment(dto.getNextDepartment());
+        if (dto.getNextApprover() != null) mfr.setNextApprover(dto.getNextApprover());
     }
 }

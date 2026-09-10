@@ -14,6 +14,7 @@ import java.util.List;
 public class QaMfrRequestDto {
     private String rfqId;
     private String rfqNo;
+    private String rfqProductId;
 
     private String productName;
     private String dosageForm;
@@ -37,4 +38,6 @@ public class QaMfrRequestDto {
     private String remarks;
     private String createdBy;
     private String approvedBy;
+    private String nextDepartment;
+    private String nextApprover;
 }

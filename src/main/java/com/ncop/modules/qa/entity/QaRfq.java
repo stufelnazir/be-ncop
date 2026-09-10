@@ -56,6 +56,9 @@ public class QaRfq {
     private String createdDate; // YYYY-MM-DD
 
     private List<QaCompositionLine> compositionLines = new ArrayList<>();
+    // New RFQs use this collection. Legacy top-level product fields are retained
+    // so existing records remain readable during the transition.
+    private List<QaRfqProduct> products = new ArrayList<>();
     private QaChangeParts changeParts = new QaChangeParts();
 
     private String packagingSpec;

@@ -32,6 +32,12 @@ public class QaFormulaCalculatorService {
         String unit = claimUnit != null ? claimUnit.trim().toLowerCase() : "mg";
         String bUnit = batchUnit != null ? batchUnit.trim().toLowerCase() : "kg";
 
+        // Packaging/count materials are not mass conversions. For example, a
+        // requirement of 1 bottle per pack needs batchSize bottles, not kg.
+        if (isCountUnit(unit) || isCountUnit(bUnit)) {
+            return roundTo(batchSize * overagedQtyPerUnit, 4);
+        }
+
         // Convert per-unit overaged quantity to base standard milligrams (mg) or milliliters (ml)
         double qtyInBaseMgOrMl = overagedQtyPerUnit;
         if (unit.equals("mcg") || unit.equals("μg")) {
@@ -63,6 +69,14 @@ public class QaFormulaCalculatorService {
         }
 
         return roundTo(batchResult, 4);
+    }
+
+    public boolean isCountUnit(String value) {
+        if (value == null) return false;
+        String unit = value.trim().toLowerCase();
+        return unit.equals("nos") || unit.equals("no") || unit.equals("number")
+                || unit.equals("pcs") || unit.equals("pieces") || unit.equals("units")
+                || unit.equals("bottles") || unit.equals("packs");
     }
 
     private Double roundTo(double value, int places) {

@@ -45,6 +45,7 @@ public class QaQueryController {
         query.setRfqId(dto.getRfqId());
         query.setRfqNo(dto.getRfqNo());
         query.setMfrId(dto.getMfrId());
+        query.setRfqProductId(dto.getRfqProductId());
         query.setRaisedBy(dto.getRaisedBy() != null ? dto.getRaisedBy() : "QA Team");
         query.setRaisedTo(dto.getRaisedTo() != null ? dto.getRaisedTo() : "Sales Team");
         query.setSubject(dto.getSubject());
@@ -58,6 +59,10 @@ public class QaQueryController {
         if (dto.getRfqId() != null) {
             rfqRepository.findById(dto.getRfqId()).ifPresent(rfq -> {
                 rfq.setStatus(QaRfqStatus.QUERY_RAISED);
+                if (dto.getRfqProductId() != null && rfq.getProducts() != null) {
+                    rfq.getProducts().stream().filter(product -> dto.getRfqProductId().equals(product.getId()))
+                            .forEach(product -> product.setTechnicalQueryRaised(true));
+                }
                 rfq.setLastUpdatedOn(Instant.now());
                 rfqRepository.save(rfq);
             });
@@ -91,8 +96,14 @@ public class QaQueryController {
                     rfqRepository.findById(query.getRfqId()).ifPresent(rfq -> {
                         if (rfq.getStatus() == QaRfqStatus.QUERY_RAISED) {
                             rfq.setStatus(rfq.getCompositionLines().isEmpty() ? QaRfqStatus.FORMULA_PENDING : QaRfqStatus.DRAFT_SAVED);
-                            rfq.setLastUpdatedOn(Instant.now());
-                            rfqRepository.save(rfq);
+                        rfq.setLastUpdatedOn(Instant.now());
+                        if (query.getRfqProductId() != null && rfq.getProducts() != null) {
+                            boolean productHasOpenQuery = queryRepository.findByRfqId(query.getRfqId()).stream()
+                                    .anyMatch(item -> query.getRfqProductId().equals(item.getRfqProductId()) && "OPEN".equalsIgnoreCase(item.getStatus()));
+                            rfq.getProducts().stream().filter(product -> query.getRfqProductId().equals(product.getId()))
+                                    .forEach(product -> product.setTechnicalQueryRaised(productHasOpenQuery));
+                        }
+                        rfqRepository.save(rfq);
                         }
                     });
                 }

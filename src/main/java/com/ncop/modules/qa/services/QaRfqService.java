@@ -10,6 +10,7 @@ import com.ncop.modules.qa.dto.MfrMatchResultDto;
 import com.ncop.modules.qa.dto.QaRfqRequestDto;
 import com.ncop.modules.qa.entity.QaCompositionLine;
 import com.ncop.modules.qa.entity.QaRfq;
+import com.ncop.modules.qa.entity.QaRfqProduct;
 import com.ncop.modules.qa.enums.QaPriority;
 import com.ncop.modules.qa.enums.QaRfqStatus;
 import com.ncop.modules.qa.repository.QaRfqRepository;
@@ -24,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -104,6 +106,21 @@ public class QaRfqService {
         QaRfq rfq = getRfqById(id)
                 .orElseThrow(() -> new RuntimeException("RFQ not found with id: " + id));
         return matchingService.findMatchesForRfq(rfq);
+    }
+
+    public List<MfrMatchResultDto> getMfrMatches(String id, String productId) {
+        QaRfq rfq = getRfqById(id).orElseThrow(() -> new RuntimeException("RFQ not found with id: " + id));
+        if (productId == null || productId.isBlank()) return matchingService.findMatchesForRfq(rfq);
+        QaRfqProduct product = rfq.getProducts().stream().filter(item -> productId.equals(item.getId())).findFirst()
+                .orElseThrow(() -> new RuntimeException("RFQ product not found: " + productId));
+        QaRfq matchContext = new QaRfq();
+        matchContext.setId(rfq.getId());
+        matchContext.setProductName(product.getProductName());
+        matchContext.setDosageForm(product.getDosageForm());
+        matchContext.setStandard(product.getStandard());
+        matchContext.setCompositionLines(product.getCompositionLines());
+        matchContext.setTargetBatchSize(product.getTotalTablets());
+        return matchingService.findMatchesForRfq(matchContext);
     }
 
     /**
@@ -247,18 +264,62 @@ public class QaRfqService {
             rfq.setCompositionLines(processedLines);
         }
 
+        if (dto.getProducts() != null && !dto.getProducts().isEmpty()) {
+            List<QaRfqProduct> products = new ArrayList<>();
+            for (QaRfqProduct product : dto.getProducts()) {
+                product.setId(product.getId() == null || product.getId().isBlank()
+                        ? UUID.randomUUID().toString() : product.getId());
+                List<QaCompositionLine> lines = product.getCompositionLines() == null
+                        ? new ArrayList<>() : product.getCompositionLines();
+                for (QaCompositionLine line : lines) {
+                    line.setOveragedQty(calculatorService.calculateOveragedQty(line.getLabelClaim(), line.getOveragePercent()));
+                }
+                product.setCompositionLines(lines);
+                if (product.getOrderQty() != null && product.getPackingSpecs() != null) {
+                    product.setTotalTablets(product.getOrderQty() * parsePackingMultiplier(product.getPackingSpecs()));
+                }
+                products.add(product);
+            }
+            rfq.setProducts(products);
+            // Keep legacy summary fields in sync with the first product for old clients.
+            QaRfqProduct first = products.get(0);
+            rfq.setProductName(first.getProductName());
+            rfq.setDosageForm(first.getDosageForm());
+            rfq.setStandard(first.getStandard());
+            rfq.setCompositionLines(first.getCompositionLines());
+            rfq.setOrderQty(first.getOrderQty());
+            rfq.setPackingSpecs(first.getPackingSpecs());
+            rfq.setTotalTablets(first.getTotalTablets());
+        } else if ((rfq.getProducts() == null || rfq.getProducts().isEmpty()) && dto.getProductName() != null) {
+            // Backward-compatible creation path: make the existing single product a line item.
+            QaRfqProduct product = new QaRfqProduct();
+            product.setId(UUID.randomUUID().toString());
+            product.setProductName(dto.getProductName());
+            product.setDosageForm(dto.getDosageForm());
+            product.setStandard(dto.getStandard());
+            product.setCompositionLines(rfq.getCompositionLines());
+            product.setOrderQty(dto.getOrderQty());
+            product.setPackingSpecs(dto.getPackingSpecs());
+            if (dto.getOrderQty() != null && dto.getPackingSpecs() != null) {
+                product.setTotalTablets(dto.getOrderQty() * parsePackingMultiplier(dto.getPackingSpecs()));
+            }
+            rfq.setProducts(List.of(product));
+        }
+
         if (dto.getChangeParts() != null) {
             rfq.setChangeParts(dto.getChangeParts());
         }
 
         rfq.setPackagingSpec(dto.getPackagingSpec());
-        rfq.setOrderQty(dto.getOrderQty());
-        rfq.setPackingSpecs(dto.getPackingSpecs());
-        if (dto.getTotalTablets() != null && dto.getTotalTablets() > 0) {
-            rfq.setTotalTablets(dto.getTotalTablets());
-        } else if (dto.getOrderQty() != null && dto.getPackingSpecs() != null) {
-            double multiplier = parsePackingMultiplier(dto.getPackingSpecs());
-            rfq.setTotalTablets(dto.getOrderQty() * multiplier);
+        if (dto.getProducts() == null || dto.getProducts().isEmpty()) {
+            rfq.setOrderQty(dto.getOrderQty());
+            rfq.setPackingSpecs(dto.getPackingSpecs());
+            if (dto.getTotalTablets() != null && dto.getTotalTablets() > 0) {
+                rfq.setTotalTablets(dto.getTotalTablets());
+            } else if (dto.getOrderQty() != null && dto.getPackingSpecs() != null) {
+                double multiplier = parsePackingMultiplier(dto.getPackingSpecs());
+                rfq.setTotalTablets(dto.getOrderQty() * multiplier);
+            }
         }
 
         Double targetBatch = dto.getTargetBatchSize();

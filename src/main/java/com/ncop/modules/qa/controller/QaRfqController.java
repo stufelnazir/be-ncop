@@ -66,9 +66,9 @@ public class QaRfqController {
     }
 
     @GetMapping("/{id}/matches")
-    public ResponseEntity<List<MfrMatchResultDto>> getMfrMatches(@PathVariable String id) {
+    public ResponseEntity<List<MfrMatchResultDto>> getMfrMatches(@PathVariable String id, @RequestParam(required = false) String productId) {
         try {
-            List<MfrMatchResultDto> matches = rfqService.getMfrMatches(id);
+            List<MfrMatchResultDto> matches = rfqService.getMfrMatches(id, productId);
             return ResponseEntity.ok(matches);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();

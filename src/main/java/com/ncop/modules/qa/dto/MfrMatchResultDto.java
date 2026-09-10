@@ -20,6 +20,9 @@ public class MfrMatchResultDto {
     private String dosageForm;
     private String dosageVariant;
     private String composition;
+    private Double batchSize;
+    private String batchUnit;
+    private String status;
 
     private Double totalScore; // 0 to 100
     private Double productNameScore; // max 35
@@ -28,6 +31,7 @@ public class MfrMatchResultDto {
     private Double dosageFormScore; // max 10
     private Double standardScore; // max 5
     private Double statusScore; // max 5
+    private Double batchSizeScore; // max 5
 
     private List<String> matchedIngredients = new ArrayList<>();
 }
