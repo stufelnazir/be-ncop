@@ -33,6 +33,62 @@ class QaRfqServiceTest {
     @Mock private QaRfqRepository rfqRepository;
     @Mock private QaFormulaCalculatorService calculatorService;
     @Mock private MfrMatchingService matchingService;
+    @Mock private QaRfqAccessService accessService;
+
+    @Test
+    void outsourcedInquiryReachesQcAndReassignmentPreservesFormula() {
+        CustomerInquiry inquiry = new CustomerInquiry();
+        inquiry.setId("inquiry-qc");
+        inquiry.setQcAssigneeId("qc-new");
+        inquiry.setQcAssigneeName("QC Reviewer");
+        InquiryLine line = new InquiryLine();
+        line.setProductId("outsourced-product");
+        line.setProductName("Outsourced product");
+        line.setSourcing(ProductSourcing.OUTSOURCED);
+        inquiry.setLines(List.of(line));
+        QaRfq existing = new QaRfq();
+        existing.setSourceProductId(line.getProductId());
+        existing.setAssignedToId("qc-old");
+        existing.setStatus(QaRfqStatus.DRAFT_SAVED);
+        when(rfqRepository.findByInquiryId(inquiry.getId())).thenReturn(List.of(existing));
+
+        new QaRfqService(rfqRepository, calculatorService, matchingService, accessService)
+                .syncAssignedInquiry(inquiry, new Client());
+
+        verify(rfqRepository).save(existing);
+        assertEquals("qc-new", existing.getAssignedToId());
+        assertEquals(QaRfqStatus.DRAFT_SAVED, existing.getStatus());
+    }
+
+    @Test
+    void assignedRecordsAreFilteredBeforePaginationAndDetailLookup() {
+        QaRfq mine = new QaRfq();
+        mine.setAssignedToId("qa-me");
+        QaRfq other = new QaRfq();
+        other.setAssignedToId("qa-other");
+        when(accessService.currentUserFilter()).thenReturn(r -> "qa-me".equals(r.getAssignedToId()));
+        when(rfqRepository.findAll()).thenReturn(List.of(other, mine));
+        when(rfqRepository.findById("other")).thenReturn(Optional.of(other));
+        var service = new QaRfqService(rfqRepository, calculatorService, matchingService, accessService);
+        var page = service.getRfqs(org.springframework.data.domain.PageRequest.of(0, 1), null, null, null, null);
+        assertEquals(List.of(mine), page.getContent());
+        assertEquals(1, page.getTotalElements());
+        assertEquals(Optional.empty(), service.getRfqById("other"));
+    }
+
+    @Test
+    void removedProductsLoseTheirAssignment() {
+        CustomerInquiry inquiry = new CustomerInquiry();
+        inquiry.setId("inquiry-1");
+        inquiry.setLines(List.of());
+        QaRfq removed = new QaRfq();
+        removed.setAssignedToId("qa-old");
+        when(rfqRepository.findByInquiryId(inquiry.getId())).thenReturn(List.of(removed));
+        new QaRfqService(rfqRepository, calculatorService, matchingService, accessService)
+                .syncAssignedInquiry(inquiry, new Client());
+        assertEquals(null, removed.getAssignedToId());
+        verify(rfqRepository).save(removed);
+    }
 
     @Test
     void assignedInHouseInquiryCreatesVisibleQaWorkItem() {
@@ -63,7 +119,7 @@ class QaRfqServiceTest {
         line.setCalculatedTabletQuantity(1_000L);
         inquiry.setLines(List.of(line));
 
-        new QaRfqService(rfqRepository, calculatorService, matchingService)
+        new QaRfqService(rfqRepository, calculatorService, matchingService, accessService)
                 .syncAssignedInquiry(inquiry, new Client());
 
         ArgumentCaptor<QaRfq> captor = ArgumentCaptor.forClass(QaRfq.class);
@@ -84,6 +140,7 @@ class QaRfqServiceTest {
 
     @Test
     void qaWorkbenchUpdateKeepsSalesAssignmentLink() {
+        when(accessService.currentUserFilter()).thenReturn(r -> true);
         QaRfq existing = new QaRfq();
         existing.setId("qa-rfq-1");
         existing.setInquiryId("inquiry-1");
@@ -95,7 +152,7 @@ class QaRfqServiceTest {
 
         QaRfqRequestDto workbenchChanges = new QaRfqRequestDto();
         workbenchChanges.setProductName("Updated product");
-        QaRfq updated = new QaRfqService(rfqRepository, calculatorService, matchingService)
+        QaRfq updated = new QaRfqService(rfqRepository, calculatorService, matchingService, accessService)
                 .updateRfq("qa-rfq-1", workbenchChanges);
 
         assertEquals("inquiry-1", updated.getInquiryId());

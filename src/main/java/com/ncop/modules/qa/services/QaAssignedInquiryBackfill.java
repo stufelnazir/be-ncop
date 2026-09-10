@@ -21,7 +21,6 @@ public class QaAssignedInquiryBackfill implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         inquiryRepository.findAll().stream()
-                .filter(inquiry -> inquiry.getQaAssigneeId() != null && !inquiry.getQaAssigneeId().isBlank())
                 .forEach(inquiry -> {
                     try {
                         clientRepository.findById(inquiry.getCustomerId())

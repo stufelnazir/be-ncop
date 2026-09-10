@@ -33,6 +33,11 @@ public class QaRfqService {
     private final QaRfqRepository rfqRepository;
     private final QaFormulaCalculatorService calculatorService;
     private final MfrMatchingService matchingService;
+    private final QaRfqAccessService accessService;
+
+    public List<QaRfq> getVisibleRfqs() {
+        return rfqRepository.findAll().stream().filter(accessService.currentUserFilter()).toList();
+    }
 
     public QaRfq createRfq(QaRfqRequestDto dto) {
         QaRfq rfq = new QaRfq();
@@ -46,7 +51,7 @@ public class QaRfqService {
     }
 
     public PageResponse<QaRfq> getRfqs(Pageable pageable, String search, QaRfqStatus status, QaPriority priority, String dosageForm) {
-        List<QaRfq> all = rfqRepository.findAll();
+        List<QaRfq> all = getVisibleRfqs();
 
         List<QaRfq> filtered = all.stream().filter(r -> {
             if (status != null && r.getStatus() != status) return false;
@@ -78,11 +83,11 @@ public class QaRfqService {
     }
 
     public Optional<QaRfq> getRfqById(String id) {
-        return rfqRepository.findById(id);
+        return rfqRepository.findById(id).filter(accessService.currentUserFilter());
     }
 
     public QaRfq updateRfq(String id, QaRfqRequestDto dto) {
-        QaRfq rfq = rfqRepository.findById(id)
+        QaRfq rfq = getRfqById(id)
                 .orElseThrow(() -> new RuntimeException("RFQ not found with id: " + id));
 
         mapDtoToEntity(dto, rfq);
@@ -92,26 +97,29 @@ public class QaRfqService {
     }
 
     public void deleteRfq(String id) {
-        rfqRepository.findById(id).ifPresent(rfqRepository::delete);
+        getRfqById(id).ifPresent(rfqRepository::delete);
     }
 
     public List<MfrMatchResultDto> getMfrMatches(String id) {
-        QaRfq rfq = rfqRepository.findById(id)
+        QaRfq rfq = getRfqById(id)
                 .orElseThrow(() -> new RuntimeException("RFQ not found with id: " + id));
         return matchingService.findMatchesForRfq(rfq);
     }
 
     /**
-     * Creates or refreshes one QA work item for every in-house product in a Sales RFQ.
+     * Creates or refreshes a work item for each product's assigned QA or QC reviewer.
      * Existing work items are updated in place so editing/reassigning an inquiry never
      * creates duplicates or discards formula work already completed by QA.
      */
     public void syncAssignedInquiry(CustomerInquiry inquiry, Client client) {
-        if (inquiry.getQaAssigneeId() == null || inquiry.getQaAssigneeId().isBlank()) return;
-
-        List<QaRfq> existing = rfqRepository.findByInquiryId(inquiry.getId());
+        List<QaRfq> existing = new ArrayList<>(rfqRepository.findByInquiryId(inquiry.getId()));
+        List<QaRfq> refreshed = new ArrayList<>();
         for (InquiryLine line : inquiry.getLines()) {
-            if (line.getSourcing() != ProductSourcing.IN_HOUSE) continue;
+            boolean outsourced = line.getSourcing() == ProductSourcing.OUTSOURCED;
+            if (!outsourced && line.getSourcing() != ProductSourcing.IN_HOUSE) continue;
+            String assigneeId = outsourced ? inquiry.getQcAssigneeId() : inquiry.getQaAssigneeId();
+            String assigneeName = outsourced ? inquiry.getQcAssigneeName() : inquiry.getQaAssigneeName();
+            if (assigneeId == null || assigneeId.isBlank()) continue;
 
             QaRfq rfq = existing.stream()
                     .filter(item -> line.getProductId().equals(item.getSourceProductId()))
@@ -145,8 +153,8 @@ public class QaRfqService {
             rfq.setPharmacopeia(line.getPharmacopeia());
             rfq.setStandard(line.getPharmacopeia());
             rfq.setPriority(toQaPriority(inquiry.getPriority()));
-            rfq.setAssignedToId(inquiry.getQaAssigneeId());
-            rfq.setAssignedToName(inquiry.getQaAssigneeName());
+            rfq.setAssignedToId(assigneeId);
+            rfq.setAssignedToName(assigneeName);
             rfq.setAssignedBy(firstNonBlank(
                     inquiry.getSalesAssigneeName(), inquiry.getRaisedByUserName(), "Sales Team"));
             rfq.setDueDate(inquiry.getTargetQuoteDate() == null ? null : inquiry.getTargetQuoteDate().toString());
@@ -160,6 +168,15 @@ public class QaRfqService {
             rfq.setRemarks(inquiry.getNotes());
             rfq.setLastUpdatedOn(Instant.now());
             rfqRepository.save(rfq);
+            refreshed.add(rfq);
+            if (!existing.contains(rfq)) existing.add(rfq);
+        }
+        for (QaRfq stale : existing) {
+            if (!refreshed.contains(stale)) {
+                stale.setAssignedToId(null);
+                stale.setAssignedToName(null);
+                rfqRepository.save(stale);
+            }
         }
     }
 
