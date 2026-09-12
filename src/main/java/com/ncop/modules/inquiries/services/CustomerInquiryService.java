@@ -128,7 +128,36 @@ public class CustomerInquiryService {
 
     public Page<CustomerInquiry> list(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return inquiryRepository.findAll(pageable);
+        // Drafts are private Sales work-in-progress records and must never appear
+        // in the shared Admin/QA/QC RFQ table.
+        return inquiryRepository.findByStatusNot(InquiryStatus.DRAFT, pageable);
+    }
+
+    public CustomerInquiry createDraft(CustomerInquiryRequestDto request) {
+        User currentUser = requireSalesUser();
+        CustomerInquiry inquiry = new CustomerInquiry();
+        inquiry.setRfqNo(nextRfqNo());
+        inquiry.setInquiryDate(LocalDate.now());
+        inquiry.setRaisedByUserId(currentUser.getId());
+        inquiry.setRaisedByUserName(fullName(currentUser));
+        inquiry.setSalesAssigneeId(currentUser.getId());
+        inquiry.setSalesAssigneeName(fullName(currentUser));
+        applyDraftRequest(inquiry, request);
+        inquiry.setStatus(InquiryStatus.DRAFT);
+        return inquiryRepository.save(inquiry);
+    }
+
+    public CustomerInquiry updateDraft(String id, CustomerInquiryRequestDto request) {
+        User currentUser = requireSalesUser();
+        CustomerInquiry inquiry = get(id);
+        boolean isOwner = currentUser.getId().equals(inquiry.getRaisedByUserId())
+                || currentUser.getId().equals(inquiry.getSalesAssigneeId());
+        if (!isOwner) {
+            throw new IllegalArgumentException("Only the Sales owner can edit this draft");
+        }
+        applyDraftRequest(inquiry, request);
+        inquiry.setStatus(InquiryStatus.DRAFT);
+        return inquiryRepository.save(inquiry);
     }
 
     public CustomerInquiry update(String id, CustomerInquiryRequestDto request) {
@@ -213,6 +242,45 @@ public class CustomerInquiryService {
         CustomerInquiry saved = inquiryRepository.save(inquiry);
         qaRfqService.syncAssignedInquiry(saved, client);
         return saved;
+    }
+
+    private User requireSalesUser() {
+        User currentUser = currentUserOrNull();
+        if (currentUser == null || !hasRole(currentUser, "SALES")) {
+            throw new IllegalArgumentException("Only Sales users can save inquiry drafts");
+        }
+        return currentUser;
+    }
+
+    private void applyDraftRequest(CustomerInquiry inquiry, CustomerInquiryRequestDto request) {
+        inquiry.setInquirySource(request.getInquirySource());
+        inquiry.setPriority(request.getPriority());
+        inquiry.setTargetQuoteDate(request.getTargetQuoteDate());
+        inquiry.setNotes(request.getNotes());
+
+        if (request.getCustomerId() != null && !request.getCustomerId().isBlank()) {
+            Client client = clientRepository.findById(request.getCustomerId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
+            inquiry.setCustomerId(client.getId());
+            inquiry.setCustomerName(client.getCompanyName());
+            if (request.getContactPersonId() != null && !request.getContactPersonId().isBlank()) {
+                PointOfContact contact = client.getPointOfContacts().stream()
+                        .filter(p -> request.getContactPersonId().equals(p.getId())
+                                || request.getContactPersonId().equalsIgnoreCase(p.getEmail()))
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalArgumentException("Contact person does not belong to the selected customer"));
+                inquiry.setContactPersonId(contact.getId() != null ? contact.getId() : request.getContactPersonId());
+                inquiry.setContactPersonName(contact.getPersonName());
+                inquiry.setContactEmail(contact.getEmail());
+            }
+        }
+
+        List<InquiryLine> draftLines = (request.getLines() == null ? List.<InquiryLineRequestDto>of() : request.getLines())
+                .stream()
+                .filter(line -> line.getProductId() != null && !line.getProductId().isBlank())
+                .map(this::toLine)
+                .toList();
+        inquiry.setLines(draftLines);
     }
 
     public CustomerInquiry get(String id) {

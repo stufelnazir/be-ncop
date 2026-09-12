@@ -22,11 +22,23 @@ public class CustomerInquiryController {
         return ResponseEntity.status(HttpStatus.CREATED).body(inquiryService.create(request));
     }
 
+    @PostMapping("/draft")
+    public ResponseEntity<CustomerInquiry> createDraft(@RequestBody CustomerInquiryRequestDto request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(inquiryService.createDraft(request));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<CustomerInquiry> update(
             @PathVariable String id,
             @Valid @RequestBody CustomerInquiryRequestDto request) {
         return ResponseEntity.ok(inquiryService.update(id, request));
+    }
+
+    @PutMapping("/{id}/draft")
+    public ResponseEntity<CustomerInquiry> updateDraft(
+            @PathVariable String id,
+            @RequestBody CustomerInquiryRequestDto request) {
+        return ResponseEntity.ok(inquiryService.updateDraft(id, request));
     }
 
     @GetMapping
